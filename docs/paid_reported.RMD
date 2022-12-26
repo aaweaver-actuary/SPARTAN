@@ -19,6 +19,7 @@ params:
   n_iterations: 6000
   sel_lr: c(0.779, 0.263, 0.307, 0.326, 0.274, 0.350, 0.369, 0.363, 0.474, 0.479, 0.436, 0.513, 0.508, 0.695, 0.704)
   title: 'temp-title'
+  filestem: 'O:/PARM/Corporate Actuarial/Reserving/Ad Hoc Projects/202211 MCMC Modelling/CSU Analysis - 2022Q2 Data/'
 output:
   html_document:
     df_print: paged
@@ -49,31 +50,27 @@ library(knitr,quietly=TRUE)
 options(mc.cores=parallel::detectCores())
 rstan_options(auto_write=TRUE)
 
-params=list(year=year
-                                    , qtr=quarter
-                                    , lob="OL Occ"
-                                    , model_path=model_path
-                                    , max_ay=max_ay
-                                    , loss_data_path=loss_data_path
-                                    # , mcmc_func_path=mcmc_func_path
-                                    # , plotting_script_path=plotting_script_path
-                                    , documentation_script_path=documentation_script_path
-                                    , n_ay=year - first_ay + 1
-                                    , model=model                        ## stan model file
-                                    , n_chains=n_chains                  ## number of independent Markov chains
-                                    , n_warmup=n_warmup                  ## number of iterations at the start of each chain to discard
-                                    , n_iterations=n_iterations           ## total number of iterations INCLUDING discarded warmup iterations
-                                    # , title=rmd_title
-                                    # , sel_lr=sel_lr
-                                    )
-
-filestem <- 'O:/PARM/Corporate Actuarial/Reserving/Ad Hoc Projects/202211 MCMC Modelling/CSU Analysis - 2022Q2 Data/'
-
-# source('O:/PARM/Corporate Actuarial/Reserving/Ad Hoc Projects/202211 MCMC Modelling/CSU Analysis - 2022Q2 Data/scripts/mcmc_func.R')
-# source('O:/PARM/Corporate Actuarial/Reserving/Ad Hoc Projects/202211 MCMC Modelling/CSU Analysis - 2022Q2 Data/scripts/plotting.R')
-# source('O:/PARM/Corporate Actuarial/Reserving/Ad Hoc Projects/202211 MCMC Modelling/CSU Analysis - 2022Q2 Data/scripts/documentation.R')
+params=list(
+  year=year
+  , qtr=quarter
+  , lob="OL Occ"
+  , model_path=model_path
+  , max_ay=max_ay
+  , loss_data_path=loss_data_path
+  , documentation_script_path=documentation_script_path
+  , n_ay=year - first_ay + 1
+  , model=model                        
+  , n_chains=n_chains                  
+  , n_warmup=n_warmup                  
+  , n_iterations=n_iterations          
+  # , title=rmd_title
+  # , sel_lr=sel_lr
+)
 
 source(r"(O:\PARM\Corporate Actuarial\Reserving\Scripts\R\mcmc_documentation\mcmc_documentation.R)")
+scource("./docs.R")
+source('../src/documentation/output_code_chunk.R')
+source('../src/documentation/get_stancode.R')
 
 ```
 
@@ -92,25 +89,27 @@ loss.data.path <- loss_data_path
 
 ```{r Build Data Sets, message=F, echo=F, warning=F, cache=T}
 
-all_lines_olep <- build_csu_all_lines_olep_pt1(loss.data.path, as.character(params$year), as.character(params$qtr))
-all_lines_df <- build_all_lines_csu_data(loss.data.path, as.character(params$year), as.character(params$qtr))
+# all_lines_olep <- build_csu_all_lines_olep_pt1(loss.data.path, as.character(params$year), as.character(params$qtr))
+# all_lines_df <- build_all_lines_csu_data(loss.data.path, as.character(params$year), as.character(params$qtr))
   
-col.ord <- c('lob', 'ay', 'dev_month', 'cum_olep', 'rpt_loss', 'paid_loss', 'case_resv', 'paid_dcce', 'rpt_counts', 'closed_counts', 'open_counts', 'ave_rpt_loss', 'ave_paid_loss', 'ave_case_os')
+# col.ord <- c('lob', 'ay', 'dev_month', 'cum_olep', 'rpt_loss', 'paid_loss', 'case_resv', 'paid_dcce', 'rpt_counts', 'closed_counts', 'open_counts', 'ave_rpt_loss', 'ave_paid_loss', 'ave_case_os')
 
-modeldf <- build_model_df(loss.data.path, as.character(params$year), as.character(params$qtr), params$lob) %>%
-  add_missing_data(min_ay=params$first_ay, n_w=params$n_ay, n_d=max(.$d)) %>%
-  update_loss_prem_at_least_one(params$year, params$qtr) %>%
-  update_counts_at_least_one() %>%
-  recalculate_frequency_and_average_loss() %>%
-  filter_by_calendar_idx(params$year, params$qtr) %>%
-  mutate(a=as.numeric(w), b=as.numeric(d)) %>%
-  arrange(lob, b, a) %>%
-  select(-c(a, b)) %>%
-  filter(lob==params$lob)
+# modeldf <- build_model_df(loss.data.path, as.character(params$year), as.character(params$qtr), params$lob) %>%
+#   add_missing_data(min_ay=params$first_ay, n_w=params$n_ay, n_d=max(.$d)) %>%
+#   update_loss_prem_at_least_one(params$year, params$qtr) %>%
+#   update_counts_at_least_one() %>%
+#   recalculate_frequency_and_average_loss() %>%
+#   filter_by_calendar_idx(params$year, params$qtr) %>%
+#   mutate(a=as.numeric(w), b=as.numeric(d)) %>%
+#   arrange(lob, b, a) %>%
+#   select(-c(a, b)) %>%
+#   filter(lob==params$lob)
 
+
+modeldf <- all_in_one_model_df(loss_data_path, params)
 cur_year <- build_cur_year_df(modeldf, params)
 
-dm_ord <- modeldf$dev_month %>% unique() %>% sort() %>% as.character()
+# dm_ord <- modeldf$dev_month %>% unique() %>% sort() %>% as.character()
 ```
 
 ### 1.1 Reported Loss  
@@ -155,49 +154,37 @@ cumdf %>% arrange(LOB, AY) %>% kable(format.args = list(big.mark=",", digits=0, 
 
 ### 1.5 Build `stan_dat` object
 ```{r Building stan_dat object, message=F, echo=F, warning=F, cache=T}
-## build data object to pass to stan (paid loss)
-stan_dat <- list(len_data=dim(modeldf)[1]
-                 , n_w=max(modeldf$w, na.rm=TRUE)
-                 , n_d=max(modeldf$d, na.rm=TRUE)
-                 , w=modeldf$w
-                 , d=modeldf$d
-                 , cur_d=cur_year$d
-                 , log_prem=modeldf$cum_olep %>% log()
-                 , log_prem_ay=cur_year$cum_olep %>% log()
-                 , log_paid_loss=(modeldf$paid_loss + modeldf$paid_dcce) %>% log()
-                 , log_rpt_loss=(modeldf$rpt_loss + modeldf$paid_dcce) %>% log()
-                 , log_paid_loss_ay=(cur_year$paid_loss + cur_year$paid_dcce) %>% log()
-                 , log_rpt_loss_ay=(cur_year$rpt_loss + cur_year$paid_dcce) %>% log()
-                 )
+stan_dat <- list(
+  len_data=dim(modeldf)[1]
+  , n_w=max(modeldf$w, na.rm=TRUE)
+  , n_d=max(modeldf$d, na.rm=TRUE)
+  , w=modeldf$w
+  , d=modeldf$d
+  , cur_d=cur_year$d
+  , log_prem=modeldf$cum_olep %>% log()
+  , log_prem_ay=cur_year$cum_olep %>% log()
+  , log_paid_loss=(modeldf$paid_loss + modeldf$paid_dcce) %>% log()
+  , log_rpt_loss=(modeldf$rpt_loss + modeldf$paid_dcce) %>% log()
+  , log_paid_loss_ay=(cur_year$paid_loss + cur_year$paid_dcce) %>% log()
+  , log_rpt_loss_ay=(cur_year$rpt_loss + cur_year$paid_dcce) %>% log()
+  )
 ```
 
 ```{r Fitting stan model, message=F, echo=F, warning=F, cache=F}
 ## fit the model
-# dir <- r"(O:\PARM\Corporate Actuarial\Reserving\Ad Hoc Projects\202211 MCMC Modelling\CSU Analysis - 2022Q2 Data\output\paid_reported_v2.rda)"
 
-model <- stan(data = stan_dat 
-             , file = r"(O:\PARM\Corporate Actuarial\Reserving\Scripts\stan\paid_reported_v2.stan)"
-             # , file = = stringr::str_c(model.path, params$model)
-             , iter = params$n_iterations
-             , warmup = params$n_warmup
-             , chains = params$n_chains
-             )
+model <- stan(
+  data = stan_dat 
+  # , file = r"(O:\PARM\Corporate Actuarial\Reserving\Scripts\stan\paid_reported_v2.stan)"
+  , file = = stringr::str_c(params$model.path, params$model)
+  , iter = params$n_iterations
+  , warmup = params$n_warmup
+  , chains = params$n_chains
+  )
 
 out_dir <- r"(O:\PARM\Corporate Actuarial\Reserving\Ad Hoc Projects\202211 MCMC Modelling\CSU Analysis - 2022Q2 Data\output\paid_reported_v2.rda)"
 save(model, file=out_dir)
 
-
-
-# model  <- run_if_file_exists(file=dir
-#                              , ftnA = stan(data = stan_dat 
-#                                            , file = r"(O:\PARM\Corporate Actuarial\Reserving\Scripts\stan\paid_reported_v2.stan)"
-#                                            # , file = = stringr::str_c(model.path, params$model)
-#                                            , iter = params$n_iterations
-#                                            , warmup = params$n_warmup
-#                                            , chains = params$n_chains
-#                                            )
-#                               , ftnB=load(file=dir)
-# )
 ```
 
 ```{r Saving stan model, message=F, echo=F, warning=F, cache=T}
@@ -233,13 +220,14 @@ model_str <- model %>% get_stancode()
 #### 2.2.2 `functions` block 
 
 ```{r Output data code block, message=F, echo=F, warning=F, cache=T}
+
 output_code_chunk(model_str, 'functions') %>% cat()
 ```
 
 #### 2.2.2 `data` block 
 
 ```{r Output data code block, message=F, echo=F, warning=F, cache=T}
-output_code_chunk(model_str, r"(data\{)") %>% cat()
+output_code_chunk(model_str, 'data') %>% cat()
 ```
 
 #### 2.2.3 `transformed data` block
@@ -266,9 +254,10 @@ output_code_chunk(model_str, 'transformed parameters') %>% cat()
 Note:  see appendix A.1 for model specification. 
 
 ```{r Output model code block, message=F, echo=F, warning=F, cache=T}
-data_start <- model_str %>% str_locate(r"(model\{)")
-data_end <- str_sub(model_str, start=data_start[[1, 1]]) %>% str_locate(r"(\})")
-str_sub(model_str, start=data_start[[1, 1]]) %>% str_sub(start=1, end=data_end[2]) %>% cat()
+output_code_chunk(model_str, 'model') %>% cat()
+# data_start <- model_str %>% str_locate(r"(model\{)")
+# data_end <- str_sub(model_str, start=data_start[[1, 1]]) %>% str_locate(r"(\})")
+# str_sub(model_str, start=data_start[[1, 1]]) %>% str_sub(start=1, end=data_end[2]) %>% cat()
 ```
 
 #### 2.2.6 `generated quantities` block
