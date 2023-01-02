@@ -10,6 +10,12 @@ data{
   // number of accident periods, development periods
   int<lower=1> n_w;
   int<lower=1> n_d;
+
+  // number of lines of business in the data
+  int<lower=1> n_l;
+
+  // vector of length `n_l` with the lob group for each line of business
+  int<lower=1,upper=n_l> lob_gp[n_l];
   
   // array of length `len_data` with the log of the premium, paid loss, and
   // reported loss for each row in the table
