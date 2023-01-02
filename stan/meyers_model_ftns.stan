@@ -1,5 +1,5 @@
 functions{
-/**
+   /**
    * @title Adjust Beta Vector
    * @description Adjust the values in the `beta` vector by adding a value of 0 to the end.
    * 

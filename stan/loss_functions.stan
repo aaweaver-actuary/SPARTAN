@@ -89,30 +89,30 @@ functions{
   * Takes upside and downside inputs to calculate the error differently depending on whether the actual value is greater than or less than the predicted value.
   * The error is calculated differently depending on whether the actual value is greater than or less than the predicted value.
   * Specifically, for each element in the input vectors:
-  * - If the actual value is greater than the predicted value, the error is the absolute difference between the actual and predicted values, raised to the power of `upside`.
-  * - If the actual value is less than the predicted value, the error is the absolute difference between the actual and predicted values, raised to the power of `downside`.
+  * - If the actual value is greater than the predicted value, the error is calculated by the lambda function `upside`.
+  * - If the actual value is less than the predicted value, the error is calculated by the lambda function `downside`.
   * The mean of the errors vector is then returned.
     * @param len_data An integer representing the length of the input data.
     * @param y_true A vector of true values.
     * @param y_pred A vector of predicted values.
-    * @param upside A real value representing the exponent to use for the error when the actual value is greater than the predicted value.
-    * @param downside A real value representing the exponent to use for the error when the actual value is less than the predicted value.
+    * @param upside A lambda function representing calculated error when the actual value is greater than the predicted value.
+    * @param downside A lambda function representing calculated error when the actual value is greater than the predicted value.
     *
     * @return A real value representing the mean asymmetric error between `y_true` and `y_pred`.
     */
-    real mean_asymmetric_error(int len_data, vector y_true, vector y_pred, real upside, real downside) {
+    real mean_asymmetric_error(int len_data, vector y_true, vector y_pred, real(^upside)(real, real), real(^downside)(real, real)) {
       // Initialize a vector of asymmetric errors with the same length as the input vectors.
       vector[len_data] asymmetric_errors;
 
       // Loop over each element in the input vectors and calculate the error.
       for (i in 1:len_data) {
-        // If the actual value is greater than the predicted value, use the squared error.
+        // If the actual value is greater than the predicted value, use the upside function.
         if (y_true[i] > y_pred[i]) {
-          asymmetric_errors[i] = (y_true[i] - y_pred[i])^upside;
+          asymmetric_errors[i] = upside(y_true[i], y_pred[i]);
         }
-        // Otherwise, use the absolute error.
+        // Otherwise, use the downside function.
         else {
-          asymmetric_errors[i] = (y_true[i] - y_pred[i])^downside;
+          asymmetric_errors[i] = downside(y_true[i], y_pred[i]);
         }
       }
       // Return the mean of the errors vector.
