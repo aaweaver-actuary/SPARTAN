@@ -18,10 +18,10 @@ data{
   int<lower=1,upper=n_l> lob_gp[n_l];
   
   // array of length `len_data` with the log of the premium, paid loss, and
-  // reported loss for each row in the table
-  vector[len_data] log_prem;
-  vector[len_data] log_paid_loss;
-  vector[len_data] log_rpt_loss;
+  // reported loss for each row in the table, for each line of business
+  matrix[len_data, n_l] log_prem;
+  matrix[len_data, n_l] log_paid_loss;
+  matrix[len_data, n_l] log_rpt_loss;
   
   // array of length `len_data` with the accident period index for each row in the table
   // these values range from 1 to `n_w`, with min accident period represented by 1
@@ -33,22 +33,39 @@ data{
 }
 transformed data{
   // cumulative paid and reported loss for each data point
-  vector[len_data] cum_paid_loss = exp(log_paid_loss);
-  vector[len_data] cum_rpt_loss = exp(log_rpt_loss);
+  matrix[len_data, n_l] cum_paid_loss = exp(log_paid_loss);
+  matrix[len_data, n_l] cum_rpt_loss = exp(log_rpt_loss);
 
   // current development period for each accident period
-  int<lower=1,upper=n_d> cur_d[n_w] = max_log_loss_by_group_maximize(cum_rpt_loss, len_data, w, n_w, d)[1];
+  int<lower=1,upper=n_d> cur_d[n_w, n_l] = max_log_loss_by_group_maximize(cum_rpt_loss, len_data, w, n_w, d)[1];
 
   // use the `lookup_table_by_test_value` function to get the cumulative log paid loss for each accident period
   // testing that d = cur_d for each accident period
   // array of length `n_w` with the log of the cumulative paid loss for each accident period
-  vector[n_w] log_cum_paid_loss_ay = lookup_table_by_test_value(log_paid_loss, d, cur_d, n_w, 1)[1];
-  vector[n_w] log_cum_rpt_loss_ay = lookup_table_by_test_value(log_rpt_loss, d, cur_d, n_w, 1)[1];
+  matrix[n_w, n_l] log_cum_paid_loss_ay = lookup_table_by_test_value(log_paid_loss, d, cur_d, n_w, 1)[1];
+  vector[n_w, n_l] log_cum_rpt_loss_ay = lookup_table_by_test_value(log_rpt_loss, d, cur_d, n_w, 1)[1];
 
   // use the `premium_time_series` and `build_premium_table` functions
   // and `get_cumulative_premium` function to calculate vector[n_w] log_prem_ay
   // array of length `n_w` with the log of the premium for each accident period
   vector[n_w] log_prem_ay = get_cumulative_premium(build_premium_table(premium_time_series(log_prem, w, d, len_data, n_w, n_d), n_w, n_d), n_w, n_d)[, 3];
+
+  // =============================================================================
+  // grouped data ================================================================
+  // =============================================================================
+
+  // number of unique lob groups
+  int<lower=1> n_l_gp = size(unique(lob_gp));
+  
+  // array of length `len_data` with the log of the premium, paid loss, and
+  // reported loss for each row in the table, for each line of business group
+  matrix[len_data, n_l_gp] log_prem_gp;
+  matrix[len_data, n_l_gp] log_paid_loss_gp;
+  matrix[len_data, n_l_gp] log_rpt_loss_gp;
+
+
+
+
   
 }
 parameters{
