@@ -36,16 +36,12 @@ transformed data{
   // use the `lookup_table_by_test_value` function to get the cumulative log paid loss for each accident period
   // testing that d = cur_d for each accident period
   // array of length `n_w` with the log of the cumulative paid loss for each accident period
-  // this is done as a convenience -- it is easier to manipulate data before putting it in
-  // this modeling language
   vector[n_w] log_cum_paid_loss_ay = lookup_table_by_test_value(log_paid_loss, d, cur_d, n_w, 1)[1];
   vector[n_w] log_cum_rpt_loss_ay = lookup_table_by_test_value(log_rpt_loss, d, cur_d, n_w, 1)[1];
 
   // use the `premium_time_series` and `build_premium_table` functions
   // and `get_cumulative_premium` function to calculate vector[n_w] log_prem_ay
   // array of length `n_w` with the log of the premium for each accident period
-  // this is done as a convenience -- it is easier to manipulate data before putting it in
-  // this modeling language
   vector[n_w] log_prem_ay = get_cumulative_premium(build_premium_table(premium_time_series(log_prem, w, d, len_data, n_w, n_d), n_w, n_d), n_w, n_d)[, 3];
   
 }
@@ -113,7 +109,7 @@ transformed parameters{
   // calculate the mean asymmetric error for the model by passing in the appropriate functions
   // to calculate the upside and downside errors
   // returns the negative of the mean asymmetric error so that it can be used in the objective function
-  mae = -mean_asymmetric_error(
+  real mae = -mean_asymmetric_error(
     // length of the data, used to create the vectors of the correct length
     len_data * 2
     
