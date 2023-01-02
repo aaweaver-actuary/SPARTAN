@@ -1542,42 +1542,4 @@ functions{
     // return the output matrix
     return out;
   }
-
-  /** function that takes:
-  1. a matrix with log loss data with `n_l` columns
-  2. a vector of length `n_l` representing the group that column `i` of the input matrix belongs to
-
-  takes the log loss matrix, exponetiates it, and returns a matrix with
-  1. the same number of rows as the input matrix
-  2. one column for each unique group in the input vector, and
-  3. the sum of the exponential of the log loss data in each column
-  of the input matrix that belongs to the same group
-  4. after summing up the rows, the function takes the log each cell in the output matrix
- */
-  matrix get_grouped_log_loss(matrix log_loss, vector group){
-    // calculate the number of rows in the input matrix
-    int n_rows = rows(log_loss);
-
-    // calculate the number of unique groups in the input vector
-    int n_groups = max(group);
-
-    // calculate the output matrix
-    matrix[n_rows, n_groups] out = rep_matrix(0, n_rows, n_groups);
-
-    // calculate the log loss column
-    for (i in 1:n_groups){
-      out[, i] = log_loss[, group == i];
-    }
-
-    // calculate the grouped log loss column
-    for (i in 1:n_groups){
-      out[, i] = log_sum_exp(out[, i]);
-    }
-
-    // return the output matrix
-    return out;
-  }
-
-  /** function that takes:
-  1. a matrix with log loss data with
 }
