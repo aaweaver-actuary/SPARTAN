@@ -37,13 +37,15 @@ transformed data{
   matrix[len_data, n_l] cum_rpt_loss = exp(log_rpt_loss);
 
   // current development period for each accident period
-  int<lower=1,upper=n_d> cur_d[n_w, n_l] = max_log_loss_by_group_maximize(cum_rpt_loss, len_data, w, n_w, d)[1];
+  // uses the max_log_loss_by_group_matrix function to get the current development period for each accident period
+  // array of length `n_w` with the current development period for each accident period 
+  int<lower=1,upper=n_d> cur_d[n_w] = max_log_loss_by_group_matrix(cum_rpt_loss, w, d, len_data, n_w, n_d)[, 1];
 
   // use the `lookup_table_by_test_value` function to get the cumulative log paid loss for each accident period
   // testing that d = cur_d for each accident period
   // array of length `n_w` with the log of the cumulative paid loss for each accident period
   matrix[n_w, n_l] log_cum_paid_loss_ay = lookup_table_by_test_value(log_paid_loss, d, cur_d, n_w, 1)[1];
-  vector[n_w, n_l] log_cum_rpt_loss_ay = lookup_table_by_test_value(log_rpt_loss, d, cur_d, n_w, 1)[1];
+  matrix[n_w, n_l] log_cum_rpt_loss_ay = lookup_table_by_test_value(log_rpt_loss, d, cur_d, n_w, 1)[1];
 
   // use the `premium_time_series` and `build_premium_table` functions
   // and `get_cumulative_premium` function to calculate vector[n_w] log_prem_ay
