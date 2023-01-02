@@ -1,6 +1,6 @@
 functions{
 
-/**
+ /**
     * @title Calendar Period
     * @description This function takes the number of accident periods and the number of development periods
     * and returns a matrix of size N_w x N_d, where the ijth element
