@@ -389,24 +389,64 @@ functions {
   }
 
   /**
-  * @brief A function that takes a matrix representing a premium time series and returns a new
-  * matrix of the same size, but with the premium amounts converted from cumulative to incremental.
-  * The first and second columns of the output matrix is the same as
-  * the first and second columns of the input matrix.
-  * The third column of the output matrix equals the third column of the input matrix if the 
-  * development period is 1, and equals the difference between the third column of the input matrix
-  * and the third column of the input matrix that has the same accident period but a development period
-  * that is one less than the development period in the input matrix if the development period is 2 or greater.
+  * @brief A function that takes an array representing a premium time series and returns a new
+  * array of the same size, but with the premium amounts converted from cumulative to incremental.
+  * The first and second columns of the output array is the same as
+  * the first and second columns of the input array.
+  * The third column of the output array equals the third column of the input array if the 
+  * development period is 1, and equals the difference between the third column of the input array
+  * and the third column of the input array that has the same accident period but a development period
+  * that is one less than the development period in the input array if the development period is 2 or greater.
   *
-  * @param premium_time_series A matrix of size `n_rows` by 3 representing a premium time series.
+  * @param premium_time_series A array of size `n_rows` by 3 representing a premium time series.
   * The first column is the accident period, the second column is the development period,
   * and the third column is the cumulative premium value.
   *
-  * @return A matrix of size `n_rows` by 3 representing a premium time series.
+  * @return A array of size `n_rows` by 3 representing a premium time series.
   * The first column is the accident period, the second column is the development period,
   * and the third column is the incremental premium value.
   */
-  matrix premium_cumulative_to_incremental(matrix premium_time_series){
+  array premium_to_incremental(array premium_time_series){
+    // test that the accident period column of the input matrix is a vector of integers
+    if (!is_integer(premium_time_series[, 1])){
+      print("The accident period column of the input matrix `premium_time_series` is not a vector of integers.");
+      print("The first 5 non-integer values are: ");
+      int n_non_integer = 0;
+      for (i in 1:size(premium_time_series[, 1])){
+        if (!is_integer(premium_time_series[i, 1])){
+          if (n_non_integer < 5){
+            print("i: ", i, ", value: ", premium_time_series[i, 1], ", ", sep="");
+          }
+          n_non_integer = n_non_integer + 1;
+        }
+      }
+      reject("The accident period column of the input matrix `premium_time_series` must be a vector of integers.");
+    }
+
+    // test that the development period column of the input matrix is a vector of integers
+    if (!is_integer(premium_time_series[, 2])){
+      print("The development period column of the input matrix `premium_time_series` is not a vector of integers.");
+      print("The first 5 non-integer values are: ");
+      int n_non_integer = 0;
+      for (i in 1:size(premium_time_series[, 2])){
+        if (!is_integer(premium_time_series[i, 2])){
+          if (n_non_integer < 5){
+            print("i: ", i, ", value: ", premium_time_series[i, 2], ", ", sep="");
+          }
+          n_non_integer = n_non_integer + 1;
+        }
+      }
+      reject("The development period column of the input matrix `premium_time_series` must be a vector of integers.");
+    }
+
+    // test that the premium column of the input matrix is a vector of positive numbers
+    if (!is_positive(premium_time_series[, 3])){
+      print("The premium column of the input matrix `premium_time_series` is not a vector of positive numbers.");
+      print("The minimum value in the premium column of the input matrix `premium_time_series` is ", min(premium_time_series[, 3]), ".");
+      print("There are ", count(premium_time_series[, 3] < 0), " total negatives in the premium column of the input matrix `premium_time_series`. ");
+      reject("The premium column of the input matrix `premium_time_series` must be a vector of positive numbers.");
+    }
+
     // test that the number of columns in the input matrix is 3
     if (cols(premium_time_series) != 3){
       print("There are ", cols(premium_time_series), " columns in the input matrix `premium_time_series`.");
@@ -520,50 +560,96 @@ functions {
     // calculate the incremental premium column
     out[, 3] = p;
 
+    // return the output matrix
+    return out;
+
+  }
+
+ /**
+  * @brief A function that takes a matrix representing a premium time series and returns a matrix
+  * with rows equal to the number of accident periods, and 3 columns: accident period, development
+  * period, and cumulative premium.
+  * For all prior accident periods, the cumulative premium is the premium amount at development
+  * period 4.
+  * For the current accident period, the cumulative premium is the premium amount at the largest 
+  * development period in that accident period.
+  * The number of rows in the output matrix is equal to the number of unique accident periods in the
+  * input matrix.
+  *
+  * @param premium_time_series A matrix of size `n_rows` by 3 representing a premium time series.
+  * The first column is the integer for accident period.
+  * The second column is the integer development period.
+  * The third column is the positive real number for the cumulative premium value.
+  *
+  * @return An array of size at most `n_rows` by 3 representing a premium time series.
+  * The first column is the integer for accident period.
+  * The second column is the integer development period.
+  * The third column is the positive real number for the cumulative premium value.
+  * The number of rows in the output matrix is equal to the number of
+  * unique accident periods in the input matrix, so the output matrix may have fewer rows than the
+  * input matrix.
+  */
+  matrix get_cumulative_premium(matrix premium_time_series){
+    // calculate the number of rows in the input matrix
+    int n_rows = rows(premium_time_series);
+
+    // calculate the number of unique accident periods in the input matrix
+    int n_w = max(premium_time_series[, 1]);
+
+    // calculate the output matrix
+    matrix[n_w, 3] out = rep_matrix(0, n_w, 3);
+
+    // calculate the accident period column
+    out[, 1] = 1:n_w;
+
+    // calculate the development period column
+    out[, 2] = 4;
+
+    // when out[, 1] == n_w, the cumulative premium comes from the row with
+    // the maximum value in the second column of the input matrix filtered by the first column
+    // when out[, 1] < n_w, the cumulative premium comes from the row with
+    // the value 4 in the second column of the input matrix filtered by the first column
+    for (i in 1:n_w){
+      if (i == n_w){
+        // for the current year, the cumulative premium is the premium amount at the largest
+        // development period in that accident period
+        out[i, 3] = max(premium_time_series[premium_time_series[, 1] == i, 3]);
+      } 
+      else {
+        // for all prior years, the cumulative premium is the premium amount at development period 4
+        out[i, 3] = premium_time_series[premium_time_series[, 1] == i && premium_time_series[, 2] == 4, 3];
+      }
+    }
+
+    // calculate the cumulative premium column
+    for (i in 1:n_w){
+      out[i, 3] = max(premium_time_series[premium_time_series[, 1] == i, 3]);
+    }
+
+    // return the output matrix
+    return out;
   }
 }
 data{
   // length of the arrays of loss data passed
   int<lower=1> len_data;
   
-  // number of accident periods
+  // number of accident periods, development periods
   int<lower=1> n_w;
+  int<lower=1> n_d;
   
-  // number of development periods
-	int<lower=1> n_d;
-  
-  // array of length `len_data` with the log of the premium for each row in the table
+  // array of length `len_data` with the log of the premium, paid loss, and
+  // reported loss for each row in the table
   vector[len_data] log_prem;
-  
-  // array of length `n_w` with the log of the premium for each accident period
-  // this is done as a convenience -- it is easier to manipulate data before putting it in
-  // this modeling language
-  // vector[n_w] log_prem_ay;
-  
-  // array of length `len_data` with the log of the cumulative paid loss for each row in the table
   vector[len_data] log_paid_loss;
-  
-  // array of length `len_data` with the log of the cumulative reported loss for each row in the table
   vector[len_data] log_rpt_loss;
-  
-  // array of length `n_w` with the log of the cumulative paid loss for each accident period
-  // this is done as a convenience -- it is easier to manipulate data before putting it in
-  // this modeling language
-  // vector[n_w] log_paid_loss_ay;
-  
-  // array of length `n_w` with the log of the cumulative paid loss for each accident period
-  // this is done as a convenience -- it is easier to manipulate data before putting it in
-  // this modeling language
-  // vector[n_w] log_rpt_loss_ay;
   
   // array of length `len_data` with the accident period index for each row in the table
   // these values range from 1 to `n_w`, with min accident period represented by 1
-  // this is done so data manipulations inside this modelling language are simpler
   int<lower=1,upper=n_w> w[len_data];
   
   // array of length `len_data` with the development period index for each row in the table
   // these values range from 1 to `n_d`, with min development period represented by 1
-  // this is done so data manipulations inside this modelling language are simpler
   int<lower=1,upper=n_d> d[len_data];
 }
 transformed data{
@@ -576,11 +662,18 @@ transformed data{
 
   // use the `lookup_table_by_test_value` function to get the cumulative log paid loss for each accident period
   // testing that d = cur_d for each accident period
+  // array of length `n_w` with the log of the cumulative paid loss for each accident period
+  // this is done as a convenience -- it is easier to manipulate data before putting it in
+  // this modeling language
   vector[n_w] log_cum_paid_loss_ay = lookup_table_by_test_value(log_paid_loss, d, cur_d, n_w, 1)[1];
   vector[n_w] log_cum_rpt_loss_ay = lookup_table_by_test_value(log_rpt_loss, d, cur_d, n_w, 1)[1];
 
-  // use the 
-  // to calculate vector[n_w] log_prem_ay
+  // use the `premium_time_series` and `build_premium_table` functions
+  // and `get_cumulative_premium` function to calculate vector[n_w] log_prem_ay
+  // array of length `n_w` with the log of the premium for each accident period
+  // this is done as a convenience -- it is easier to manipulate data before putting it in
+  // this modeling language
+  vector[n_w] log_prem_ay = get_cumulative_premium(build_premium_table(premium_time_series(log_prem, w, d, len_data, n_w, n_d), n_w, n_d), n_w, n_d)[, 3];
   
 }
 parameters{
@@ -658,11 +751,6 @@ model{
   // the first `n_d - 1` beta parameters for reported loss come from the draw in the parameters block
   beta_paid_loss[1:n_d] ~ normal(0,3.162);
   beta_rpt_loss[1:n_d] ~ normal(0,3.162);
-  
-  // the final loss beta parameter is 0 (indicating no further loss development outside the
-  // triangle -- on a log scale, 0 is the same as an LDF of 1.000)
-  // beta_rpt_loss[n_d] ~ uniform(-0.001, 0.001);
-  // beta_paid_loss[n_d] ~ uniform(-0.001, 0.001);
   
   // process variance terms come from this inverse gamma distribution
   // they are then inverted to get something between 0 and 1
