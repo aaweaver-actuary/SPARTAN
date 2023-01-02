@@ -11,8 +11,8 @@ functions{
   * @return The MAE value for the set of observed and predicted losses.
   * 
   * @examples
-  * mean_absolute_error(5, {100, 200, 300, 400, 500}, {90, 180, 270, 360, 450})
-  * # returns 30
+  * mean_absolute_error(2, {100, 200}, {90, 180})
+  * # returns 20
   */
   real mean_absolute_error(int len_data, vector y_true, vector y_pred) {
     // test that the input vectors are the same length
@@ -363,8 +363,11 @@ functions{
             reject("The input vector must be of length `len_data`.");
         }
 
-
-
+        // test if `log_rpt_loss` is a vector of reals, not a vector of integers
+        if (is_real(log_rpt_loss) == 0) {
+            print("`log_rpt_loss`: ", log_rpt_loss);
+            reject("This must be a vector of reals.");
+        }
 
       // Initialize a vector to store the mu parameters for paid or reported loss.
       vector[len_data] mu_loss;
@@ -421,6 +424,19 @@ functions{
   * # returns {0.4, 0.3, 0.3, 0.3, 0.3}
   */
   vector calculate_sig_loss(vector a, int n_d) {
+    // test if `a` is a vector with one element per development period
+    if (len(a) != n_d) {
+        print("The length of `a` is ", len(a), " and `n_d` is ", n_d, "." );
+        print("`a` parameters should be one per development period.")
+        reject("The input vector must be of length `n_d`.");
+    }
+
+    // test if `n_d` is an integer
+    if (is_integer(n_d) == 0) {
+        print("`n_d`: ", n_d);
+        reject("This must be an integer.");
+    }
+
     // Initialize the sig2_loss vector, which will store the sig2_loss values for each development period.
     vector[n_d] sig2_loss;
   
@@ -460,6 +476,18 @@ functions{
   * correction term for the i-th accident period.
   */
   vector calculate_speedup(int n_w, real gamma){
+    // test if `n_w` is an integer
+    if (is_integer(n_w) == 0) {
+      print("`n_w`: ", n_w);
+      reject("This must be an integer.");
+    }
+
+    // test if `gamma` is a real value
+    if (is_real(gamma) == 0) {
+      print("`gamma`: ", gamma);
+      reject("This must be a real value.");
+    }
+
     // initialize a vector to store the speedup terms
     vector[n_w] speedup;
 
@@ -481,20 +509,27 @@ functions{
 
   /**
   * @title Calculate the rho parameter for the given accident period.
-  *
   * @description Calculate the rho parameter for the given accident period.
   *
   * @param r_rho A real value representing the rho parameter for the previous accident period.
   *
   * @return A real value representing the rho parameter for the given accident period.
+  * @examples
+    * calculate_rho(0.5)
+    * # returns 0.5
   */
   real calculate_rho(real r_rho){
+    // test if `r_rho` is a real value
+    if (is_real(r_rho) == 0) {
+      print("`r_rho`: ", r_rho);
+      reject("This must be a real value.");
+    }
+
     return -2*r_rho+1;
   }
 
   /**
   * @title Calculate the ultimate loss for each accident year in the given data.
-  * 
   * @description Calculate the ultimate loss for each accident year in the given data.
   *
   * @param n_w An integer representing the number of accident years in the data.
@@ -521,6 +556,72 @@ functions{
   the second column represents the standard deviation.
   */
   matrix calculate_ultimate_loss(int n_w, int n_d, vector log_prem_ay, real logelr, vector alpha_loss, vector beta_rpt_loss, vector speedup, real rho, vector log_rpt_loss_ay, vector sig_rpt_loss) {
+    // test if `n_w` is an integer
+    if (is_integer(n_w) == 0) {
+      print("`n_w`: ", n_w);
+      reject("This must be an integer.");
+    }
+
+    // test if `n_d` is an integer
+    if (is_integer(n_d) == 0) {
+      print("`n_d`: ", n_d);
+      reject("This must be an integer.");
+    }
+
+    // test if `log_prem_ay` is a vector of length `n_w`
+    if (size(log_prem_ay) != n_w) {
+      print("`size(log_prem_ay)`: ", size(log_prem_ay));
+      print("`n_w`: ", n_w);
+      reject("This must be a vector of length `n_w`.");
+    }
+
+    // test if `logelr` is a real value
+    if (is_real(logelr) == 0) {
+      print("`logelr`: ", logelr);
+      reject("This must be a real value.");
+    }
+
+    // test if `alpha_loss` is a vector of length `n_w`
+    if (size(alpha_loss) != n_w) {
+      print("`size(alpha_loss)`: ", size(alpha_loss));
+      print("`n_w`: ", n_w);
+      reject("This must be a vector of length `n_w`.");
+    }
+
+    // test if `beta_rpt_loss` is a vector of length `n_d`
+    if (size(beta_rpt_loss) != n_d) {
+      print("`size(beta_rpt_loss)`: ", size(beta_rpt_loss));
+      print("`n_d`: ", n_d);
+      reject("This must be a vector of length `n_d`.");
+    }
+
+    // test if `speedup` is a vector of length `n_w`
+    if (size(speedup) != n_w) {
+      print("`size(speedup)`: ", size(speedup));
+      print("`n_w`: ", n_w);
+      reject("This must be a vector of length `n_w`.");
+    }
+
+    // test if `rho` is a real value
+    if (is_real(rho) == 0) {
+      print("`rho`: ", rho);
+      reject("This must be a real value.");
+    }
+
+    // test if `log_rpt_loss_ay` is a vector of length `n_w`
+    if (size(log_rpt_loss_ay) != n_w) {
+      print("`size(log_rpt_loss_ay)`: ", size(log_rpt_loss_ay));
+      print("`n_w`: ", n_w);
+      reject("This must be a vector of length `n_w`.");
+    }
+
+    // test if `sig_rpt_loss` is a vector of length `n_d`
+    if (size(sig_rpt_loss) != n_d) {
+      print("`size(sig_rpt_loss)`: ", size(sig_rpt_loss));
+      print("`n_d`: ", n_d);
+      reject("This must be a vector of length `n_d`.");
+    }
+
     // Initialize a vector to store the ultimate loss for each accident year.
     matrix[n_w, 2] ultimate_loss;
     
@@ -557,7 +658,8 @@ functions{
 
   /**
     * @title Calendar Period
-    * @description This function takes the number of accident periods and the number of development periods
+    * @description This function takes the number of accident periods
+    * and the number of development periods
     * and returns a matrix of size N_w x N_d, where the ijth element
     * is i + j - 1
     * @param N_w number of accident periods
@@ -565,12 +667,29 @@ functions{
     * @return matrix of size N_w x N_d, where the ijth element
     * is i + j - 1
     * @examples
-    * N_w <- 3
-    * N_d <- 2
+    * N_w <- 4
+    * N_d <- 4
     * calendar_period(N_w, N_d)
-    * @export
+    * #>      [,1] [,2] [,3] [,4]
+    * #> [1,]    1    2    3    4
+    * #> [2,]    2    3    4    5
+    * #> [3,]    3    4    5    6
+    * #> [4,]    4    5    6    7
     */
   matrix calendar_period(int N_w, int N_d) {
+      // test if `N_w` is a positive integer
+        if (is_positive_integer(N_w) == 0) {
+            print("`N_w`: ", N_w);
+            reject("This must be a positive integer.");
+        }
+
+        // test if `N_d` is a positive integer
+        if (is_positive_integer(N_d) == 0) {
+            print("`N_d`: ", N_d);
+            reject("This must be a positive integer.");
+        }
+
+
       // declare output matrix
       matrix[N_w, N_d] out;
       // fill in output matrix
@@ -582,27 +701,31 @@ functions{
       return out;
   }
 
-  // function that takes the number of accident periods and the number of development periods and 
-  // the current quarter and returns a matrix of size N_w x N_d, where the ijth element
-  // is 1 if i + j <= N_w + current quarter and 0 otherwise
+  /**
+        ===========================================================================================
+        THIS DOES NOT WORK ========================================================================
+        ===========================================================================================
 
-  // starts with extremely detailed documentation using roxygen2 syntax, including a title, description, and parametersn
-  // as well as examples and return values
+  */
   /**
     * @title Calendar Period Indicator
     * @description This function takes the number of accident periods and the number of development periods and 
-    * the current quarter and returns a matrix of size N_w x N_d, where the ijth element
-    * is 1 if i + j <= N_w + current quarter and 0 otherwise
+    * the current quarter and returns a matrix of size N_w x N_d, where the [w, d]-th element
+    * is 1 if w + d <= N_w + current quarter and 0 otherwise
     * @param N_w number of accident periods
     * @param N_d number of development periods
     * @param current_quarter current quarter
-    * @return matrix of size N_w x N_d, where the ijth element
-    * is 1 if i + j <= N_w + current quarter and 0 otherwise
+    * @return matrix of size N_w x N_d, where the [w, d]-th element
+    * is 1 if 12*w + 3*d <= (12*N_w) + (3*current_quarter) and 0 otherwise
     * @examples
-    * N_w <- 3
-    * N_d <- 2
-    * current_quarter <- 1
-    * calendar_period_indicator(N_w, N_d, current_quarter)
+    * calendar_period_indicator(5, 4, 1)
+    * #>      [,1] [,2] [,3] [,4]
+    * #> [1,]    1    1    1    1
+    * #> [2,]    1    1    1    1
+    * #> [3,]    1    1    1    1
+    * #> [4,]    1    1    1    1
+    * #> [5,]    1    1    1    1
+
     * @export
     */
   matrix calendar_period_indicator(int N_w, int N_d, int current_quarter) {
