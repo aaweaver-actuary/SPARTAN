@@ -54,15 +54,24 @@ functions{
   * final_development_period_for_origin_year = final_development_period_for_origin_year(origins_to_test, current_year, current_month, first_origin_year, n_origin_periods)
   * final_development_period_for_origin_year
   * # should be [78, 66, 54, 42, 30, 18] 
-  * # last one is 18 because the current year is 2021 and the current month is 6, so [12 * (2021 - 2020 + 1)] - 6 = 18
-  * # the first one is 78 because the current year is 2021 and the current month is 6, so [12 * (2021 - 2015 + 1)] - 6 = 78
-  * # 54 comes from [12 * (2021 - 2017 + 1)] - 6 = 54
+  * # last one is 18 because the current year is 2021 and the current month is 6, so [12 * (2021 - 2020)] + 6 = 18
+  * # the first one is 78 because the current year is 2021 and the current month is 6, so [12 * (2021 - 2015))] + 6 = 78
+  * # 54 comes from [12 * (2021 - 2017)] + 6 = 54
   * using same parameters as above, but with current year and month as 2022 and 3
   * final_development_period_for_origin_year = final_development_period_for_origin_year(origins_to_test, 2022, 3, 2015, 6)
   * final_development_period_for_origin_year
-  * # should be [87, 75, 63, 51, 39, 27]
+
+  * origin_year = np.array([2010, 2011, 2012])
+  * n_origin_periods = 3
+  * development_pattern = np.array([0.25, 0.5, 0.75, 1])
+  * current_year = 2012
+  * current_month = 9
+  * # test final development period for each origin period
+  * final_development_period_for_origin_year = final_development_period_for_origin_year(origin_year, current_year, current_month, 2010, n_origin_periods)
+  * print(final_development_period_for_origin_year)
+  * # should be [27, 15, 3]
   */
-  vector final_development_period_for_origin_year(vector origins_to_test, int current_year, int current_month, int first_origin_year, int n_origin_periods){
+  vector final_development_period_for_origin_year(int n_origin_periods, vector[n_origin_periods] origins_to_test, int current_year, int current_month, int first_origin_year){
     // test that the current year is greater than or equal to the largest origin year
     // if not, throw an error
     if (current_year < max(origins_to_test)){
@@ -93,18 +102,19 @@ functions{
       reject("Length of origins_to_test vector must be equal to the number of origin periods.");
     }
 
-    // vector of the final development period for each origin period
-    vector[n_origin_periods] final_development_period_for_origin_year;
+    // array of the final development period for each origin period
+    real[n_origin_periods] final_development_period_for_origin_year;
     
     // loop through each origin period
     for (i in 1:n_origin_periods){
       // calculate the final development period for each origin period
-      // final development period = 12 * (current_year - first_origin_year) + (current_month)
-      // + 3 as a convention
-      final_development_period_for_origin_year[i] = 12 * (current_year - origins_to_test[i] + 1) - current_month + 3;
+      // final development period = 12 * (current_year - origin_year) + current_month
+      final_development_period_for_origin_year[i] = 12 * (current_year - origins_to_test[i]) + current_month;
     }
     return final_development_period_for_origin_year; 
   }
+
+
 
   /**
   * @title Calculate Final Development Period for Each Origin Month
@@ -141,6 +151,7 @@ functions{
   * final_development_period_for_origin_year = final_development_period_for_origin_year(origins_to_test, current_year, current_month, first_origin_year, n_origin_periods)
   * final_development_period_for_origin_year
   * # should be [63, 60, 57, 54, 51, 48, 45, 42, 39, 36, 33, 30]
+
   */
   vector final_development_period_for_origin_month(matrix origins_to_test, int current_year, int current_month, int first_origin_year, int n_origin_periods){
     // test that the current year is greater than or equal to the largest origin year
@@ -243,21 +254,124 @@ functions{
     * current_year = 2012
     * current_month = 9
     * # test final development period for each origin period
-    * final_development_period_for_origin_year = final_development_period_for_origin_year(origin_year, current_year, current_month, 2010, n_origin_periods)
+    * final_development_period_for_origin_year = final_development_period_for_origin_year(n_origin_periods, origin_year, current_year, current_month, 2010)
     * print(final_development_period_for_origin_year)
-    * > 
-    * expected_loss = chain_ladder_ultimate_loss(cumulative_loss, origin_year, 1, n_origin_periods, n_development_periods, development_pattern, current_year, current_month)
-    * print(expected_loss)
-
-    * expected_loss
-
-
-    
-
-
-
-
     */
+    vector chain_ladder_ultimate_loss(matrix loss, vector origin_year, int cumulative_loss, int n_origin_periods, int n_development_periods, vector development_pattern, int current_year, int current_month){
+    // initialize vector of the final development period for each origin period
+    vector[n_origin_periods] final_development_period_for_origin_year;
+
+    // loop through each origin period
+    for (i in 1:n_origin_periods){
+      // calculate the final development period for each origin period
+      // final development period = 12 *
+      // (current_year - origin_year) + current_month
+      final_development_period_for_origin_year[i] = 12 * (current_year - origin_year[i]) + current_month;
+    }
+
+    // if the (current_year * 12 + current_month) is less than (max(origin_year) * 12 + 12,
+    // then the final development period is set to the current month
+    if ((current_year * 12 + current_month) < (max(origin_year) * 12 + 12)){
+      // loop through each origin period
+      for (i in 1:n_origin_periods){
+        // set the final development period for each origin period to the current month
+        final_development_period_for_origin_year[i] = current_month;
+      }
+    }
+
+    // if the number of unique origin years is less than the number of rows in the loss matrix,
+    // then aggregate the loss matrix by origin year
+    if (n_origin_periods < rows(loss)){
+      // aggregate the loss matrix by origin year
+      loss = aggregated_loss(loss, origin_year, rows(loss), n_development_periods, n_origin_periods);
+    }
+
+    // if the triangle is incremental, calculate the cumulative loss triangle
+    // using the cumulative_loss function from the spartan_functions.stan file
+    if (cumulative_loss == 0){
+      loss = cumulative_loss(loss, n_origin_periods, n_development_periods);
+    }
+
+    // initialize vector of the estimated ultimate loss for each origin period
+    vector[n_origin_periods] estimated_ultimate_loss;
+
+    // loop through each origin period
+    for (i in 1:n_origin_periods){
+      // calculate the estimated ultimate loss for each origin period
+      // by taking the cumulative loss in the final development period
+      // and then dividing by the percent of ultimate loss in the final development period 
+      // unless the development pattern is 0, in which case the estimated ultimate loss is 0
+      if (development_pattern[final_development_period_for_origin_year[i]] == 0){
+        estimated_ultimate_loss[i] = 0;
+      } else {
+        estimated_ultimate_loss[i] = loss[i, final_development_period_for_origin_year[i]] / development_pattern[final_development_period_for_origin_year[i]];
+      }
+    }
+
+    // return the estimated ultimate loss for each origin period
+    return estimated_ultimate_loss;
+    }
+
+    // function that takes the cumulative loss for each origin period,
+    // the exposure for each origin period,
+    // the expected loss ratio for each origin period
+    // and the development pattern
+    // and returns the ultimate loss for each origin period based on the
+    // Cape Cod method
+    // cape cod ultimate = cumulative loss + (exposure * expected loss ratio * (1 - development pattern))
+    /**
+    * @param cumulative_loss vector of the cumulative loss for each origin period
+    * @param exposure vector of the exposure for each origin period
+    * @param final_development_period_for_origin_year vector of the final development period for each origin period
+    * @param expected_loss_ratio vector of the expected loss ratio for each origin period
+    * @param development_pattern vector of the number of development periods containing
+    * a normal-scale development pattern
+    * expressed as the percent of ultimate loss in the final development period
+    * @param n_development_periods int number of development periods in matrix
+    *
+    * @return vector of size n_origin_periods representing the ultimate loss for each origin period
+    * using the Cape Cod method (cumulative loss + (exposure * expected loss ratio * (1 - development pattern)))
+    * @examples
+    * cumulative_loss = np.array([1,2,3])
+    * exposure = np.array([1,2,3])
+    * final_development_period_for_origin_year = np.array([1,2,3])
+    * expected_loss_ratio = np.array([0.25, 0.5, 0.75])
+    * development_pattern = np.array([0.25, 0.5, 0.75, 1])
+    * n_development_periods = 4
+    * # test cape cod ultimate loss for each origin period
+    * cape_cod_ultimate_loss = cape_cod_ultimate_loss(cumulative_loss, exposure, final_development_period_for_origin_year, expected_loss_ratio, development_pattern, n_development_periods)
+    * print(cape_cod_ultimate_loss)
+    */
+    vector cape_cod_ultimate_loss(vector cumulative_loss, vector exposure, vector final_development_period_for_origin_year, vector expected_loss_ratio, vector development_pattern, int n_development_periods){
+      // initialize vector of the ultimate loss for each origin period
+      vector[rows(cumulative_loss)] ultimate_loss;
+
+      // loop through each origin period
+      for (i in 1:rows(cumulative_loss)){
+        // calculate the ultimate loss for each origin period
+        // by taking the cumulative loss for each origin period
+        // and adding the exposure for each origin period
+        // multiplied by the expected loss ratio for each origin period
+        // multiplied by (1 - the development pattern for the final development period for each origin period)
+        // unless the development pattern is 0, in which case the ultimate loss is 0
+        if (development_pattern[final_development_period_for_origin_year[i]] == 0){
+          ultimate_loss[i] = 0;
+        } else {
+          ultimate_loss[i] = cumulative_loss[i] + (exposure[i] * expected_loss_ratio[i] * (1 - development_pattern[final_development_period_for_origin_year[i]]));
+        }
+      }
+
+      // return the ultimate loss for each origin period
+      return ultimate_loss;
+    }
+
+    // function that takes the chain ladder estimated ultimate loss for each origin period,
+    // the cape cod ultimate loss for each origin period,
+    // and the development pattern 
+    // and returns the ultimate loss for each origin period based on the
+    // Benktander method (CL * (1 - DP) + CC * DP)
+
+
 }
 
 data{
