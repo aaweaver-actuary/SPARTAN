@@ -370,6 +370,64 @@ functions{
     // and the development pattern 
     // and returns the ultimate loss for each origin period based on the
     // Benktander method (CL * (1 - DP) + CC * DP)
+    // benktander ultimate = chain ladder ultimate loss * (1 - development pattern) + cape cod ultimate loss * development pattern
+    // chain ladder ultimate is calculated from the chain ladder function
+    // cape cod ultimate is calculated from the cape cod function
+    // parameters are be all those needed to use these two functions, plus the development pattern
+    // returns a vector of the ultimate loss for each origin period
+    /**
+    * @title Benktander Ultimate Loss
+    * @description function that calculates the chain ladder estimated ultimate loss for each origin period and
+    * the cape cod ultimate loss for each origin period, as well as taking the development pattern as a parameter,
+    * and returns the ultimate loss for each origin period based on the Benktander method (CL * (1 - DP) + CC * DP)
+    * @param cumulative_loss vector of the cumulative loss for each origin period
+    * @param exposure vector of the exposure for each origin period
+    * @param final_development_period_for_origin_year vector of the final development period for each origin period
+    * @param expected_loss_ratio vector of the expected loss ratio for each origin period
+    * @param development_pattern vector of the number of development periods containing
+    * a normal-scale development pattern
+    * expressed as the percent of ultimate loss in the final development period
+    * @param n_development_periods int number of development periods in matrix
+    *
+    * @return vector of size n_origin_periods representing the ultimate loss for each origin period
+    * using the Benktander method (chain ladder ultimate loss * (1 - development pattern) + cape cod ultimate loss * development pattern)
+    * @examples
+    * cumulative_loss = np.array([1,2,3])
+    * exposure = np.array([1,2,3])
+    * final_development_period_for_origin_year = np.array([1,2,3])
+    * expected_loss_ratio = np.array([0.25, 0.5, 0.75])
+    * development_pattern = np.array([0.25, 0.5, 0.75, 1])
+    * n_development_periods = 4
+    * # test benktander ultimate loss for each origin period
+    * benktander_ultimate_loss = benktander_ultimate_loss(cumulative_loss, exposure, final_development_period_for_origin_year, expected_loss_ratio, development_pattern, n_development_periods)
+    * print(benktander_ultimate_loss)
+    */
+    vector benktander_ultimate_loss(vector cumulative_loss, vector exposure, vector final_development_period_for_origin_year, vector expected_loss_ratio, vector development_pattern, int n_development_periods){
+      // calculate the chain ladder ultimate loss for each origin period
+      vector[rows(cumulative_loss)] chain_ladder_ultimate_loss = chain_ladder_ultimate_loss(cumulative_loss, exposure, final_development_period_for_origin_year, expected_loss_ratio, n_development_periods);
+
+      // calculate the cape cod ultimate loss for each origin period
+      vector[rows(cumulative_loss)] cape_cod_ultimate_loss = cape_cod_ultimate_loss(cumulative_loss, exposure, final_development_period_for_origin_year, expected_loss_ratio, development_pattern, n_development_periods);
+
+      // initialize vector of the ultimate loss for each origin period
+      vector[rows(cumulative_loss)] ultimate_loss;
+
+      // loop through each origin period
+      for (i in 1:rows(cumulative_loss)){
+        // calculate the ultimate loss for each origin period
+        // by taking the chain ladder ultimate loss for each origin period
+        // multiplied by (1 - the development pattern for the final development period for each origin period)
+        // and adding the cape cod ultimate loss for each origin period
+        // multiplied by the development pattern for the final development period for each origin period
+        ultimate_loss[i] = (chain_ladder_ultimate_loss[i] * (1 - development_pattern[final_development_period_for_origin_year[i]])) + (cape_cod_ultimate_loss[i] * development_pattern[final_development_period_for_origin_year[i]]);
+      }
+
+      // return the ultimate loss for each origin period
+      return ultimate_loss;
+    }
+
+    
+    
 
 
 }
