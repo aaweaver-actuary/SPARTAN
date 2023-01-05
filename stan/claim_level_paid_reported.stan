@@ -14,45 +14,83 @@ functions{
   /**
   * @title Calculate Cumulative Sum of a Vector
   * @description Calculates the cumulative sum of a vector.
+  * has an indicator variable controlling whether the final element of the vector
+  * is 0
   * @param N int length of the vector
   * @param x vector of values
+  * @param final_element_zero int indicator variable controlling
+  * whether the final element of the vector is 0
   * @return vector of the cumulative sum of the parameter vector
   * @examples
   * x = np.array([1, 2, 3, 4, 5])
   * N = 5
-  * cumulative_sum = cumulative_sum(N, x)
-  * cumulative_sum
+  * cumulative_sum(N, x, 0) # final element is not 0
   * > [1, 3, 6, 10, 15]
+  *
+  * cumulative_sum(N, x, 1) # final element is 0
+  * > [1, 3, 6, 10, 0]
   */
-  vector cumulative_sum(int N, vector x){
+  vector cumulative_sum(int N, vector x, int final_element_zero){
+    // initialize vector of cumulative sum of values
     vector[N] cumulative_sum;
+
+    // calculate cumulative sum of values
+    // first element is just the first element of the vector
     cumulative_sum[1] = x[1];
+
+    // for the rest of the elements, add the previous element to the current element
     for (i in 2:N){
-      cumulative_sum[i] = cumulative_sum[i - 1] + x[i];
+
+      // if the final element of the vector is 0, then
+      // the final element of the cumulative sum should be 0
+      if (final_element_zero == 1){
+
+        // if we are at the final element of the vector, then
+        // set the final element of the cumulative sum to 0
+        if (i == N){
+          cumulative_sum[i] = 0;
+        } 
+        // otherwise, add the previous element to the current element
+        else {
+          cumulative_sum[i] = cumulative_sum[i - 1] + x[i];
+        }
+      } 
+      
+      // otherwise, the final element of the cumulative sum should be the
+      // final element of the vector
+      else {
+        cumulative_sum[i] = cumulative_sum[i - 1] + x[i];
+      }
     }
+
+    // return the cumulative sum
     return cumulative_sum;
   }
 
   // same as above, but exponentiates each element of the vector
   // before calculating the cumulative sum
+  // add in the final element of the vector as 0 indicator variable
+  // as above
   /**
   * @title Calculate Cumulative Sum of Exponentiated Vector
   * @description Calculates the cumulative sum of a vector.
   * @param N int length of the vector
   * @param x vector of values
+  * @param final_element_zero int indicator variable controlling
+  * whether the final element of the vector is 0
   * @return vector of the cumulative sum of the parameter vector
   * @examples
   * x = np.array([1, 2, 3, 4, 5])
   * N = 5
-  * cumulative_sum = cumulative_sum(N, x)
+  * cumulative_sum = cumulative_sum(N, x, 0) # final element is not 0
   * cumulative_sum
   * > [1, 3, 6, 10, 15]
 
-  * cumulative_sum_exp = cumulative_sum_exp(N, x)
+  * cumulative_sum_exp = cumulative_sum_exp(N, x, 0) # final element is not 0
   * cumulative_sum_exp
   * > [2.718281828459045, 7.38905609893065, 20.085536923187668, 54.598150033144236, 148.4131591025766]
   */
-  vector cumulative_sum_exp(int N, vector x){
+  vector cumulative_sum_exp(int N, vector x, int final_element_zero){
     // initialize vector of cumulative sum of exponentiated values
     vector[N] cumulative_sum_exp;
 
@@ -62,13 +100,32 @@ functions{
 
     // for the rest of the elements, add the previous element to the current element
     for (i in 2:N){
-      cumulative_sum_exp[i] = cumulative_sum_exp[i - 1] + exp(x[i]);
+
+      // if the final element of the vector is 0, then
+      // the final element of the cumulative sum should be 0
+      if (final_element_zero == 1){
+
+        // if we are at the final element of the vector, then
+        // set the final element of the cumulative sum to 0
+        if (i == N){
+          cumulative_sum_exp[i] = 0;
+        } 
+        // otherwise, add the previous element to the current element
+        else {
+          cumulative_sum_exp[i] = cumulative_sum_exp[i - 1] + exp(x[i]);
+        }
+      } 
+      
+      // otherwise, the final element of the cumulative sum should be the
+      // final element of the vector
+      else {
+        cumulative_sum_exp[i] = cumulative_sum_exp[i - 1] + exp(x[i]);
+      }
     }
+
+    // return the cumulative sum
     return cumulative_sum_exp;
   }
-
-  
-
 
   // function that takes current year, month, first origin year, and the number of origin periods
   // and returns a vector of the final development period for each origin period
@@ -587,34 +644,17 @@ transformed parameters {
   // both reported and paid loss triangles use the same alpha parameters
   vector[n_origin_periods] alpha_loss_total;
 
-  // error parameters for the accident year `alpha` parameters
-  // error is highest for the largest origin indices
-  // and lowest for the smallest origin indices
-  // does not necessarily decrease monotonically
-  // both reported and paid loss triangles use the same alpha parameters
-  vector<lower=0>[n_origin_periods] alpha_loss_total_error;
-
   // beta_total parameters for paid & reported loss triangles
   // are cumulative sums of the raw development pattern parameters
   // the final 
-  vector[n_development_periods] beta_reported_loss_total;
-  vector[n_development_periods] beta_paid_loss_total;
-  for(i in 1:n_development_periods){
-    if (i == 1){
-      beta_reported_loss_total[i] = r_beta_reported_loss_total[i];
-      beta_paid_loss_total[i] = r_beta_paid_loss_total[i];
-    }
-    else {
-      beta_reported_loss_total[i] = beta_reported_loss_total[i-1] + r_beta_reported_loss_total[i];
-      beta_paid_loss_total[i] = beta_paid_loss_total[i-1] + r_beta_paid_loss_total[i];
-    }
-  }
-
+  vector[n_development_periods] beta_reported_loss_total = cumulative_sum_exp(n_development_periods, r_beta_reported_loss_total);
+  vector[n_development_periods] beta_paid_loss_total = cumulative_sum_exp(n_development_periods, r_beta_paid_loss_total);
+  
   // expected loss ratios for each origin period
   // each element is the expected loss ratio for the origin period
   // each element corresponds to an origin period (indexed starting at 1)
   // each element is the sum of the exponentiated r_log_elr parameters
-  vector[n_origin_periods] expected_loss_ratio;
+  vector[n_origin_periods] expected_loss_ratio = cumulative_sum_exp(n_origin_periods, r_log_elr);
 
 
 }
