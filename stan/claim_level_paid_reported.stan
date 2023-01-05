@@ -546,7 +546,51 @@ functions{
       return ultimate_loss;
     }
 
-    
+
+    // function that takes a vector of origin periods and a vector of development periods
+    // and returns a matrix of the origin period by development period
+    // where each cell is the calendar period for that origin period and development period
+    /**
+    * @title Calendar Period Matrix
+    * @description function that takes a vector of origin periods and a vector of development periods
+    * and returns a matrix of the origin period by development period
+    * where each cell is the calendar period for that origin period and development period
+    * @param n_origin_periods int number of origin periods in matrix
+    * @param origin_period vector of origin periods
+    * @param n_development_periods int number of development periods in matrix
+    * @param development_period vector of development periods
+    *
+    * @return matrix of size n_origin_periods x n_development_periods representing
+    * the calendar period for each origin period and development period
+    * @examples
+    * origin_period = np.array([1,2,3,4])
+    * development_period = np.array([1,2,3,4,5,6])
+    * n_origin_periods = 4
+    * n_development_periods = 6
+    * # test calendar period matrix
+    * calendar_period_matrix(n_origin_periods, origin_period, n_development_periods, development_period)
+    * [[1 2 3 4 5 6]
+    *  [2 3 4 5 6 7]
+    *  [3 4 5 6 7 8]
+    *  [4 5 6 7 8 9]]
+    */
+    matrix calendar_period_matrix(int n_origin_periods, vector origin_period, int n_development_periods, vector development_period){
+      // initialize matrix of the calendar period for each origin period and development period
+      matrix[n_origin_periods, n_development_periods] calendar_period;
+
+      // loop through each origin period
+      for (i in 1:n_origin_periods){
+        // loop through each development period
+        for (j in 1:n_development_periods){
+          // calculate the calendar period for each origin period and development period
+          // by adding the origin period to the development period and subtracting 1
+          calendar_period[i, j] = origin_period[i] + development_period[j] - 1;
+        }
+      }
+
+      // return the calendar period for each origin period and development period
+      return calendar_period;
+    } 
     
 
 
@@ -666,7 +710,7 @@ parameters{
 
   // RAW development pattern parameters for the total loss triangle
   // these are considered raw because they are picked using elastic net
-  // and are not yet transformed to be on the correct scale
+  // and are differences that are not yet on the correct scale
   vector r_beta_reported_loss_total[n_development_periods];
   vector r_beta_paid_loss_total[n_development_periods];
 
@@ -736,12 +780,7 @@ parameters{
   // and again for all the alpha parameters
   real lambda_beta;
   real lambda_alpha;
-
-
-
-
 }
-
 model{
   // ============================================
   // === DEVELOPMENT PATTERN PARAMETERS =========
@@ -822,6 +861,4 @@ model{
   // actual accident year `expected_loss_ratio` parameters are the cumulative sum
   // of the raw accident year `expected_loss_ratio` parameters
   r_log_elr ~ normal(0, 1 - lambda_elr) + laplace(0, lambda_elr);
-  
-
 }
