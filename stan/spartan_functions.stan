@@ -1,12 +1,13 @@
 functions{
   /**
     * Calculate the mean absolute error (MAE) for a set of observed and predicted losses. 
-    * The MAE is defined as the average absolute difference between the predicted losses and the corresponding observed losses. 
+    * The MAE is defined as the average absolute difference between
+    * the predicted losses and the corresponding observed losses. 
     * It is used as a measure of how closely the model fits the data.
     * 
     * @param len_data An integer representing the number of data points.
-    * @param y_true A vector of observed losses.
-    * @param y_pred A vector of predicted losses.
+    * @param y_true An array of length `len_data` of observed losses.
+    * @param y_pred An array of length `len_data` of predicted losses.
     * 
     * @return The MAE value for the set of observed and predicted losses.
     * 
@@ -14,57 +15,44 @@ functions{
     * mean_absolute_error(2, {100, 200}, {90, 180})
     * # returns 20
     */
-    real mean_absolute_error(int len_data, vector y_true, vector y_pred) {
-      // test that the input vectors are the same length
-      if (len(y_true) != len(y_pred)) {
+    real mean_absolute_error(const int len_data, const real y_true[len_data], const real y_pred[len_data]) {
+      // test that the input vectors are the same length as each other and as `len_data`
+      if (len(y_true) != len(y_pred) || len_data != len(y_true || y_true == null || y_pred == null)) {
         print("The length of y_true is ", len(y_true), " and the length of y_pred is ", len(y_pred), "." );
-        reject("The input vectors must be the same length.");
-      }
-
-      // test that `len_data` is the same as the length of the input vectors
-      if (len_data != len(y_true)) {
-        print("The length of y_true is ", len(y_true), " and the input length from `len_data` is ", len_data, "." );
-        reject("These must be the same length.");
+        print("The input length from `len_data` is ", len_data, "." );
+        print("The input vectors and `len_data` must be the same length and not null.");
+        return -1;
       }
 
       // test to see if `len_data` is a positive integer
       if (len_data <= 0) {
         print("`len_data`: ", len_data);
-        reject("This must be a positive integer.");
+        print("This must be a positive integer.");
+        return -1;
       }
 
       // test to ensure that the input vectors are not empty and are not equal to each other
-      if (len(y_true) == 0 || len(y_pred) == 0) {
+      if (len(y_true) == 0 || len(y_pred) == 0 || y_true == y_pred) {
         print("The length of y_true is ", len(y_true), " and the length of y_pred is ", len(y_pred), "." );
-        reject("The input vectors cannot be empty.");
+        print("y_true: ", y_true);
+        print("y_pred: ", y_pred);
+        print("The input vectors cannot be empty or equal.");
+        return -1;
       }
-      if (y_true == y_pred) {
-          print("y_true: ", y_true);
-          print("y_pred: ", y_pred);
-        reject("The input vectors cannot be equal.");
-      }
-      
-      // OLD CODE
-      // // Calculate the absolute difference between the two input vectors.
-      // vector[len_data] abs_errors = fabs(y_true - y_pred);
 
-      // // Return the mean of the absolute differences.
-      // return sum(abs_errors) / len_data;
-
-      // NEW CODE
       // Calculate the absolute difference between the two input vectors.
-      // Use the Kahan summation algorithm to avoid numerical instability.
+      // Use the Wellford algorithm to calculate the mean of the absolute differences, or `mu`.
       real abs_error = 0;
-      real c = 0;
+      real delta;
+      real mu;
       for(i in 1:len_data){
-        real y = fabs(y_true[i] - y_pred[i]) - c;
-        real t = abs_error + y;
-        c = (t - abs_error) - y;
-        abs_error = t;
+        delta = abs(y_true[i] - y_pred[i]) - mu;
+        mu = mu + delta / i;
+        abs_error = abs_error + delta * (abs(y_true[i] - y_pred[i]) - mu);
       }
 
       // Return the mean of the absolute differences.
-      return abs_error / len_data;
+      return mu;
     }
 
   /**
