@@ -20,7 +20,7 @@ functions{
   // and then dividing that sum by the percent of ultimate loss in the final development period
 
   /**
-    * @title Calculate Chain-Ladder Ultimate Loss
+    * @title Calculate Chain-Ladder Ultimate Loss for Origin Year Data
     * @description Calculates the expected loss for each origin period using the chain-ladder method.
     * If the number of unique origin periods is less than the number of rows in the loss matrix,
     * uses the aggregated_loss function to aggregate the loss matrix by origin period from the 
@@ -56,11 +56,88 @@ functions{
 
     */
 
+    // function that takes current year, month, first origin year, and the number of origin periods
+    // and returns a vector of the final development period for each origin period
+    // the final development period is the number of months between the current year and month
+    // and the first origin year and month
+    // assuming working with origin years, not origin months or origin quarters
+    // so the final development period is the number of months between the current year and month
+    // and the March of the first origin year
+    // expessed as a number of months
+    
+    /**
+    * @title Calculate Final Development Period for Each Origin Year
+    * @description Calculates the final development period for each origin year.
+    * The final development period is the number of months between the current year and month
+    * and the first origin year and month.
+    * Assuming working with origin years, not origin months or origin quarters,
+    * so the final development period is the number of months between the current year and month
+    * and the March of the first origin year 
+    * + 3 as a convention.
+    * Expressed as a number of months.
+    * development period = 12 * (current_year - first_origin_year) + (current_month - 3)
+    *
+    * @param origins_to_test vector of origin years to test
+    * @param current_year int current year
+    * @param current_month int current month
+    * @param first_origin_year int first origin year
+    * @param n_origin_periods int number of origin periods
+    *
+    * @return vector of the final development period for each origin period
+    * @examples
+    * origins_to_test = np.array([2015, 2016, 2017])
+    * current_year = 2017
+    * current_month = 3
+    * first_origin_year = 2015
+    * n_origin_periods = 3
+    * final_development_period_for_origin_year = final_development_period_for_origin_year(current_year, current_month, first_origin_year, n_origin_periods)
+    * # should be [27, 15, 3] because we always add 3 to the calculation at the end
+    * final_development_period_for_origin_year
+    * [27, 15, 3]
+
+    * origins_to_test = np.array([2015, 2016, 2017, 2018, 2019, 2020])
+    * current_year = 2021
+    * current_month = 6
+    * first_origin_year = 2015
+    * n_origin_periods = 6
+    * final_development_period_for_origin_year = final_development_period_for_origin_year(current_year, current_month, first_origin_year, n_origin_periods)
+    * final_development_period_for_origin_year
+
+
+    */
+    vector final_development_period_for_origin_year(int current_year, int current_month, int first_origin_year, int n_origin_periods){
+      // vector of the final development period for each origin period
+      vector[n_origin_periods] final_development_period;
+
+      // loop through each origin period
+      for (i in 1:n_origin_periods){
+        // calculate the final development period for each origin period
+        // the final development period is the number of months between the current year and month
+        // and the first origin year and month
+        // assuming working with origin years, not origin months or origin quarters
+        // so the final development period is the number of months between the current year and month
+        // and the March of the first origin year
+        // + 3 as a convention
+        // expessed as a number of months
+        final_development_period[i] = (current_year - first_origin_year - i + 1) * 12 + (current_month - 3);
+      }
+
+      return final_development_period;
+    }
+
+
 
   
 }
 
 data{
+  // current year, month
+  int<lower=2000> current_year;
+  int<lower=1, upper=12> current_month;
+
+  // first year of origin period
+  int<lower=2000> first_origin_year;
+
   // number of policies
   int<lower=1> n_policies;
 
