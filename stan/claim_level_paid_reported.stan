@@ -592,6 +592,58 @@ functions{
       return calendar_period;
     } 
     
+  // function that uses calculate_mu_loss from spartan_functions.stan as a model function
+  // to calculate the mu loss for each origin period and development period
+  // and returns a matrix of the origin period by development period
+  // where each cell is the mu loss for that origin period and development period
+  // this function is for reported loss only
+  /**
+  * @title Reported Mu Loss Matrix
+  * @description function that uses calculate_mu_loss from spartan_functions.stan as a model function
+  * to calculate the mu loss for each origin period and development period
+  * and returns a matrix of the origin period by development period
+  * where each cell is the mu loss for that origin period and development period
+  * this function is for reported loss only
+  * the formula for the mu reported loss is:
+  * mu_reported_loss[i, j] = alpha_reported_loss[i] + beta_reported_loss[j] + (rho * (log(reported_loss[i-1,j]) - mu_reported_loss[i-1, j]))
+  * @param n_origin_periods int number of origin periods in matrix
+  * @param n_development_periods int number of development periods in matrix
+  * @param origin_period vector of origin periods
+  * @param development_period vector of development periods
+  * @param calendar_period matrix of calendar periods for each origin period and development period
+  * @param reported_loss matrix of reported loss for each origin period and development period
+  * @param exposure matrix of exposure for each origin period and development period
+  * @param final_development_period_for_origin_year vector of final development period for each origin year
+  * @param expected_loss_ratio vector of expected loss ratio for each origin year
+  * @param development_pattern vector of development pattern for each development period
+  *
+  * @return matrix of size n_origin_periods x n_development_periods representing
+  * the mu loss for each origin period and development period
+  * @examples
+  * origin_period = np.array([1,2,3,4])
+  * development_period = np.array([1,2,3,4,5,6])
+  * n_origin_periods = 4
+  * n_development_periods = 6
+  * calendar_period = np.array([[1, 2, 3, 4, 5, 6],
+  *                             [2, 3, 4, 5, 6, 7],
+  *                             [3, 4, 5, 6, 7, 8],
+  *                             [4, 5, 6, 7, 8, 9]])
+  * reported_loss = np.array([[100, 200, 300, 400, 500, 600],
+  *                           [200, 300, 400, 500, 600,   0],
+  *                           [300, 400, 500, 600,   0,   0],
+  *                           [400, 500, 600,   0,   0,   0]])
+  * exposure = np.array([[1000, 1000, 1000, 1000, 1000, 1000],
+  *                      [1000, 1000, 1000, 1000, 1000,    0],
+  *                      [1000, 1000, 1000, 1000,    0,    0],
+  *                      [1000, 1000, 1000,    0,    0,    0]])
+  * final_development_period_for_origin_year = np.array([6, 5, 4, 3])
+  * expected_loss_ratio = np.array([0.1, 0.2, 0.3, 0.4])
+  * development_pattern = np.array([0.16, 0.33, 0.5, 0.67, 0.83, 1])
+  * # test reported mu loss matrix
+  * reported_mu_loss_matrix(n_origin_periods, n_development_periods, origin_period, development_period, calendar_period,
+        reported_loss, exposure, final_development_period_for_origin_year, expected_loss_ratio, development_pattern)
+  * [[ 100.          200.          300.          400.          500.          600.        ]
+
 
 
 }
