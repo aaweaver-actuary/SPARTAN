@@ -268,18 +268,18 @@ functions{
     */
   matrix log_adjusted_triangle(matrix loss, int n_policies, int n_development_periods){
       
-      // create matrix to hold adjusted loss development triangle
-      matrix[n_policies, n_development_periods] adjusted_loss_development_triangles;
+    // create matrix to hold adjusted loss development triangle
+    matrix[n_policies, n_development_periods] adjusted_loss_development_triangles;
   
-      // adjust loss development triangle
-      adjusted_loss_development_triangles = adjust_loss_development_triangle(loss, n_policies, n_development_periods);
+    // adjust loss development triangle
+    adjusted_loss_development_triangles = adjust_loss_development_triangle(loss, n_policies, n_development_periods);
   
-      // convert adjusted loss development triangle to log scale
-      adjusted_loss_development_triangles = log_loss_development_triangle(adjusted_loss_development_triangles, n_policies, n_development_periods);
+    // convert adjusted loss development triangle to log scale
+    adjusted_loss_development_triangles = log_loss_development_triangle(adjusted_loss_development_triangles, n_policies, n_development_periods);
   
-      // return adjusted loss development triangle on a log scale
-      return adjusted_loss_development_triangles;
-    }
+    // return adjusted loss development triangle on a log scale
+    return adjusted_loss_development_triangles;
+  }
 
 
   // function that takes a matrix with rows as policies and columns as development periods
