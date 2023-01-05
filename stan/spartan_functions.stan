@@ -43,12 +43,28 @@ functions{
           print("y_pred: ", y_pred);
         reject("The input vectors cannot be equal.");
       }
+      
+      // OLD CODE
+      // // Calculate the absolute difference between the two input vectors.
+      // vector[len_data] abs_errors = fabs(y_true - y_pred);
 
+      // // Return the mean of the absolute differences.
+      // return sum(abs_errors) / len_data;
+
+      // NEW CODE
       // Calculate the absolute difference between the two input vectors.
-      vector[len_data] abs_errors = fabs(y_true - y_pred);
+      // Use the Kahan summation algorithm to avoid numerical instability.
+      real abs_error = 0;
+      real c = 0;
+      for(i in 1:len_data){
+        real y = fabs(y_true[i] - y_pred[i]) - c;
+        real t = abs_error + y;
+        c = (t - abs_error) - y;
+        abs_error = t;
+      }
 
       // Return the mean of the absolute differences.
-      return sum(abs_errors) / len_data;
+      return abs_error / len_data;
     }
 
   /**
