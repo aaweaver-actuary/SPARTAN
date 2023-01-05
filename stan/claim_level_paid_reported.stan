@@ -1,4 +1,77 @@
 functions{
+  // function that takes a matrix and returns an adjusted matrix where each element is the log of the original element
+  // if the original element is > 0, the log is taken
+  // if the original element is <= 0, don't take the log, but just return 0 in that cell
+  // if the original element is missing, don't take the log, but just return 0 in that cell
+  /**
+    * @title Take log of matrix
+    * @description Takes the log of each element in a matrix.
+    * If the element is > 0, the log is taken.
+    * If the element is <= 0, don't take the log, but just return 0 in that cell.
+    * If the element is missing, don't take the log, but just return 0 in that cell.
+    * @param loss matrix to take log of
+    * @param n_rows int number of rows in matrix
+    * @param n_cols int number of columns in matrix
+    *
+    * @return matrix with each element taken on a log scale
+    * @raise error if number of rows is not equal to number of rows in matrix
+    * @raise error if number of columns is not equal to number of columns in matrix
+    * @raise error before the function tries to take the log of a value <= 0
+    *
+    * @example
+    * loss = [[1, 2, 3], [0, 5, 0], [7, 0, 0]]
+    * n_rows = 3
+    * n_cols = 3
+    * // take_log(loss, n_rows, n_cols)
+    * // should return [[0, 0.6931471805599453, 1.0986122886681098], [0, 1.6094379124341003, 0], [1.9459101490553132, 0, 0]]
+    * // the first policy is NOT ADJUSTED because it does not have any missing values or any values equal to 0
+    * // the second policy is adjusted IN THE FIRST AND THIRD CELLS because
+    * // it has a 0 value in the first development period and
+    * // it has a 0 value in the third development period
+    * // the third policy is ADJUSTED in the 2nd and 3rd cells because those values are 0
+    * 
+    * take_log(loss, n_rows, n_cols)
+    * # returns [[0, 0.6931471805599453, 1.0986122886681098], [0, 1.6094379124341003, 0], [1.9459101490553132, 0, 0]]
+    */
+    matrix take_log(matrix loss, int n_rows, int n_cols){
+    // test that number of rows is equal to number of rows in loss matrix
+    if (n_rows != rows(loss)){
+      print("Number of rows passed: ", n_rows);
+      print("Number of rows in loss matrix: ", rows(loss));
+      reject("Number of rows is not equal to number of rows in `loss` matrix.");
+    }
+
+    // test that number of columns is equal to number of columns in loss matrix
+    if (n_cols != cols(loss)){
+      print("Number of columns passed: ", n_cols);
+      print("Number of columns in loss matrix: ", cols(loss));
+      reject("Number of columns is not equal to number of columns in `loss` matrix.");
+    }
+
+    // create a matrix to hold the log of the loss matrix
+    matrix[n_rows, n_cols] log_loss;
+
+    // loop through each cell in the loss matrix
+    for (i in 1:n_rows){
+      for (j in 1:n_cols){
+        // if the cell is missing, set the corresponding cell in the log_loss matrix to 0
+        if (is_nan(loss[i, j])){
+          log_loss[i, j] = 0;
+        }
+        // if the cell is 0, set the corresponding cell in the log_loss matrix to 0
+        else if (loss[i, j] == 0){
+          log_loss[i, j] = 0;
+        }
+        // if the cell is > 0, take the log of the cell and set the corresponding cell in the log_loss matrix to the log
+        else if (loss[i, j] > 0){
+          log_loss[i, j] = log(loss[i, j]);
+        }
+      }
+    }
+
+    return log_loss;
+  }
+
   // function that takes a matrix with rows as policies and columns as development periods
   // starts at the right-hand side of the matrix and checks for the first value that is both non-missing and non-zero
   // from that point, it scans cell-by-cell to the left and checks for the first value that is 0
@@ -169,7 +242,44 @@ functions{
             }
           }
         } 
+      }
+    }
+  }
 
+  // function that combines the two above functions to return an adjusted loss development triangle
+  // on a log scale
+  /**
+    * @title Adjust loss development triangle
+    * @description Adjusts loss development triangle on a log scale
+    * @param loss matrix with rows as policies and columns as development periods
+    * @param n_policies int number of policies.
+    * This should be the same as the number of rows in loss matrix.
+    * @param n_development_periods int number of development periods.
+    * This should be the same as the number of columns in loss matrix.
+    *
+    * @return matrix with rows as policies and columns as development periods
+    * where each element is adjusted for 0's in the original loss development triangle
+    * and then converted to a log scale, adjusting for remaining 0's
+    * @raise error if number of policies is not equal to number of columns in
+    * loss development triangle
+    * @raise error if number of development periods is not equal to number of columns in
+    * adjusted loss development triangle
+    * @raise error before the function tries to take the log of a value <= 0
+    */
+  matrix log_adjusted_triangle(matrix loss, int n_policies, int n_development_periods){
+      
+      // create matrix to hold adjusted loss development triangle
+      matrix[n_policies, n_development_periods] adjusted_loss_development_triangles;
+  
+      // adjust loss development triangle
+      adjusted_loss_development_triangles = adjust_loss_development_triangle(loss, n_policies, n_development_periods);
+  
+      // convert adjusted loss development triangle to log scale
+      adjusted_loss_development_triangles = log_loss_development_triangle(adjusted_loss_development_triangles, n_policies, n_development_periods);
+  
+      // return adjusted loss development triangle on a log scale
+      return adjusted_loss_development_triangles;
+    }
 
 
   // function that takes a matrix with rows as policies and columns as development periods
@@ -298,7 +408,17 @@ data{
   matrix[n_policies, n_development_periods] exposure;
 }
 transformed data {
-   // log of the reported loss
+  // adjusted reported & paid loss development triangles
+  // adjusted to ensure that each cell in the triangle is >= $1
+  // this is done by adding the difference between the cell and $1 to the next cell
+  matrix adj_reported_loss[n_policies, n_development_periods] = 
+  adjust_loss_development_triangles(reported_loss, n_policies, n_development_periods);
+  matrix adj_paid_loss[n_policies, n_development_periods] =
+  adjust_loss_development_triangles(paid_loss, n_policies, n_development_periods);
+  
+  // log of adjusted reported & paid loss development triangles
+  matrix log_reported_loss = log(adj_reported_loss);
+  matrix log_paid_loss = log(adj_paid_loss);
 
 }
 
@@ -306,9 +426,9 @@ parameters{
   // all the parameters for the exposure time series model
   // the exposure time series model is a multivariate ARIMA model
   // the parameters are the coefficients for the ARIMA model
-  matrix arima_alpha[n_policies, n_development_periods];
-  matrix arima_theta[n_policies, n_development_periods];
-  matrix arima_epsilon[n_policies, n_development_periods];
+  vector arima_alpha[n_development_periods];
+  vector arima_theta[n_development_periods];
+  vector arima_epsilon[n_development_periods];
 
 
 
@@ -330,5 +450,5 @@ transformed parameters {
 }
 
 model{
-  arima_epsilon ~ normal(0, 2);
+  
 }
