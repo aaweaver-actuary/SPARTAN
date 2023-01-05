@@ -15,7 +15,7 @@ functions{
     * mean_absolute_error(2, {100, 200}, {90, 180})
     * # returns 20
     */
-    real mean_absolute_error(const int len_data, const real y_true[len_data], const real y_pred[len_data]) {
+    real mean_absolute_error(int len_data, vector y_true, vector y_pred) {
       // test that the input vectors are the same length as each other and as `len_data`
       if (len(y_true) != len(y_pred) || len_data != len(y_true || y_true == null || y_pred == null)) {
         print("The length of y_true is ", len(y_true), " and the length of y_pred is ", len(y_pred), "." );

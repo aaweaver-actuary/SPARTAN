@@ -7,6 +7,69 @@
 functions{
   // include spartan_functions.stan functions
   #include spartan_functions.stan
+
+  // function that takes a parameter vector and returns a vector of the cumulative
+  // sum of the parameter vector
+  // used to calculate the cumulative sum of the development pattern
+  /**
+  * @title Calculate Cumulative Sum of a Vector
+  * @description Calculates the cumulative sum of a vector.
+  * @param N int length of the vector
+  * @param x vector of values
+  * @return vector of the cumulative sum of the parameter vector
+  * @examples
+  * x = np.array([1, 2, 3, 4, 5])
+  * N = 5
+  * cumulative_sum = cumulative_sum(N, x)
+  * cumulative_sum
+  * > [1, 3, 6, 10, 15]
+  */
+  vector cumulative_sum(int N, vector x){
+    vector[N] cumulative_sum;
+    cumulative_sum[1] = x[1];
+    for (i in 2:N){
+      cumulative_sum[i] = cumulative_sum[i - 1] + x[i];
+    }
+    return cumulative_sum;
+  }
+
+  // same as above, but exponentiates each element of the vector
+  // before calculating the cumulative sum
+  /**
+  * @title Calculate Cumulative Sum of Exponentiated Vector
+  * @description Calculates the cumulative sum of a vector.
+  * @param N int length of the vector
+  * @param x vector of values
+  * @return vector of the cumulative sum of the parameter vector
+  * @examples
+  * x = np.array([1, 2, 3, 4, 5])
+  * N = 5
+  * cumulative_sum = cumulative_sum(N, x)
+  * cumulative_sum
+  * > [1, 3, 6, 10, 15]
+
+  * cumulative_sum_exp = cumulative_sum_exp(N, x)
+  * cumulative_sum_exp
+  * > [2.718281828459045, 7.38905609893065, 20.085536923187668, 54.598150033144236, 148.4131591025766]
+  */
+  vector cumulative_sum_exp(int N, vector x){
+    // initialize vector of cumulative sum of exponentiated values
+    vector[N] cumulative_sum_exp;
+
+    // calculate cumulative sum of exponentiated values
+    // first element is just the first element of the vector
+    cumulative_sum_exp[1] = exp(x[1]);
+
+    // for the rest of the elements, add the previous element to the current element
+    for (i in 2:N){
+      cumulative_sum_exp[i] = cumulative_sum_exp[i - 1] + exp(x[i]);
+    }
+    return cumulative_sum_exp;
+  }
+
+  
+
+
   // function that takes current year, month, first origin year, and the number of origin periods
   // and returns a vector of the final development period for each origin period
   // the final development period is the number of months between the current year and month
@@ -510,6 +573,12 @@ transformed data {
     matrix log_adj_paid_loss[n_policies, n_development_periods] =
     log_triangle(paid_loss, n_policies, n_development_periods);
   }  
+
+  // uses the mean absolute deviation (MAD) as the parameter for the half-cauchy prior
+  // MAD is the median of the absolute deviations from the median
+  // MAD is a robust measure of scale
+  real reported_loss_mad = mad(log_adj_reported_loss);
+  real paid_loss_mad = mad(log_adj_paid_loss);
 }
 transformed parameters {
   // accident year `alpha` parameters for the total loss triangle
@@ -525,7 +594,27 @@ transformed parameters {
   // both reported and paid loss triangles use the same alpha parameters
   vector<lower=0>[n_origin_periods] alpha_loss_total_error;
 
+  // beta_total parameters for paid & reported loss triangles
+  // are cumulative sums of the raw development pattern parameters
+  // the final 
+  vector[n_development_periods] beta_reported_loss_total;
+  vector[n_development_periods] beta_paid_loss_total;
+  for(i in 1:n_development_periods){
+    if (i == 1){
+      beta_reported_loss_total[i] = r_beta_reported_loss_total[i];
+      beta_paid_loss_total[i] = r_beta_paid_loss_total[i];
+    }
+    else {
+      beta_reported_loss_total[i] = beta_reported_loss_total[i-1] + r_beta_reported_loss_total[i];
+      beta_paid_loss_total[i] = beta_paid_loss_total[i-1] + r_beta_paid_loss_total[i];
+    }
+  }
 
+  // expected loss ratios for each origin period
+  // each element is the expected loss ratio for the origin period
+  // each element corresponds to an origin period (indexed starting at 1)
+  // each element is the sum of the exponentiated r_log_elr parameters
+  vector[n_origin_periods] expected_loss_ratio;
 
 
 }
@@ -535,9 +624,11 @@ parameters{
   // === DEVELOPMENT PATTERN PARAMETERS =========
   // ============================================
 
-  // development pattern parameters for the total loss triangle
-  vector beta_reported_loss_total[n_development_periods];
-  vector beta_paid_loss_total[n_development_periods];
+  // RAW development pattern parameters for the total loss triangle
+  // these are considered raw because they are picked using elastic net
+  // and are not yet transformed to be on the correct scale
+  vector r_beta_reported_loss_total[n_development_periods];
+  vector r_beta_paid_loss_total[n_development_periods];
 
   // error parameters for the development pattern betas
   // error is highest for the earliest development periods
@@ -552,16 +643,6 @@ parameters{
   // columns represent development periods, indexed starting at 1
   matrix[n_development_pattern_groups, n_development_periods] beta_reported_loss_group;
   matrix[n_development_pattern_groups, n_development_periods] beta_paid_loss_group;
-
-  // error parameters for the development pattern betas
-  // error is highest for the earliest development periods
-  // and lowest for the latest development periods
-  // does not necessarily decrease monotonically
-  // matrix of error parameters for each development pattern group
-  // rows represent development pattern groups, indexed starting at 1
-  // columns represent development periods, indexed starting at 1
-  matrix<lower=0>[n_development_pattern_groups, n_development_periods] beta_reported_loss_group_error;
-  matrix<lower=0>[n_development_pattern_groups, n_development_periods] beta_paid_loss_group_error;
 
   // accident year `alpha` parameters for each development pattern group
   // matrix of alpha parameters for each development pattern group
@@ -592,6 +673,8 @@ parameters{
   // === EXPECTED LOSS RATIO PARAMETERS =========
   // ============================================
   // vector of expected loss ratios for each origin period
+  // indexed starting at 1
+  vector[n_origin_periods] r_log_elr;
 
 
 
@@ -602,16 +685,103 @@ parameters{
   // vector arima_theta[n_exposure_development_periods];
   // vector arima_epsilon[n_exposure_development_periods];
 
+  // =============================================
+  // === ELASTIC NET REGULARIZATION PARAMETERS ===
+  // =============================================
+  // the elastic net regularization parameters
+  // these are the convex combination parameters
+  // for the L1 and L2 regularization penalties
+  // to avoid overfitting, the convex combination parameter
+  // is chosen for all the beta parameters
+  // and again for all the alpha parameters
+  real lambda_beta;
+  real lambda_alpha;
 
 
 
 
-}
-transformed parameters {
-   
-   
 }
 
 model{
+  // ============================================
+  // === DEVELOPMENT PATTERN PARAMETERS =========
+  // ============================================
+  // prior distributions for the development pattern parameters
+  // these parameters are the raw development pattern parameters
+  // for the prior I am choosing a convolution of
+  // a normal distribution and a laplace distribution because
+  // this is a distribution that is used for elastic net regularization
+  // elastic net regularization is a combination of L1 and L2 regularization
+  // the L1 regularization is the laplace distribution
+  // the L2 regularization is the normal distribution
+  // these two penalties are combined using a convex combination
+  // the convex combination parameter is the `lambda` parameter
   
+  // lambda has a prior uniform distribution between 0 and 1
+  // and represents the convex combination parameter
+  // 0 means no L1 regularization
+  // 1 means no L2 regularization
+  lambda_beta ~ uniform(0, 1);
+
+  // the raw development pattern parameters are a convolution of
+  // a normal distribution and a laplace distribution
+  // the normal distribution is the L2 regularization
+  // the laplace distribution is the L1 regularization
+  // with L1 penalty strength `lambda_beta`
+  // and L2 penalty strength `1 - lambda_beta`
+  r_beta_reported_loss_total ~ normal(0, 1 - lambda_beta) + laplace(0, lambda_beta);
+  r_beta_paid_loss_total ~ normal(0, 1 - lambda_beta) + laplace(0, lambda_beta);
+
+  // prior distributions for the development pattern error parameters
+  // uses the half-cauchy distribution, which is a robust distribution
+  // for modeling error parameters
+  // setting the scale parameter to the MAD of the data
+  // the MAD is the median of the absolute deviations from the median
+  // the MAD is a robust measure of scale
+  beta_reported_loss_total_error ~ half_cauchy(reported_loss_mad);
+  beta_paid_loss_total_error ~ half_cauchy(paid_loss_mad);
+
+  // beta group parameters
+  // prior distributions for the development pattern parameters by
+  // development pattern group and development period is a normal distribution
+  // with a mean of `beta_total` and a standard deviation of `beta_total_error`
+  // the `beta_total` and `beta_total_error` parameters are the same for all
+  // development pattern groups, but the `beta_group` and `beta_group_error`
+  // parameters are different for each development pattern group
+  for (i in 1:n_development_pattern_groups) {
+    for (j in 1:n_development_periods) {
+      beta_reported_loss_group[i, j] ~ normal(beta_reported_loss_total[j], beta_reported_loss_total_error[j]);
+      beta_paid_loss_group[i, j] ~ normal(beta_paid_loss_total[j], beta_paid_loss_total_error[j]);
+    }
+  }
+  
+  // ======================================
+  // === ORIGIN PERIOD PARAMETERS =========
+  // ======================================
+  // prior distributions for the accident year `expected_loss_ratio` parameters
+  // these parameters are the raw accident year `expected_loss_ratio` parameters
+  // the first raw accident year `expected_loss_ratio` parameter is an intercept
+  // the remaining raw accident year `expected_loss_ratio` parameters are differences
+  // actual accident year `expected_loss_ratio` parameters are the cumulative sum
+  // of the raw accident year `expected_loss_ratio` parameters
+  
+  // lambda has a prior uniform distribution between 0 and 1
+  // and represents the convex combination parameter
+  // 0 means no L1 regularization
+  // 1 means no L2 regularization
+  lambda_elr ~ uniform(0, 1);
+
+  // the raw accident year `expected_loss_ratio` parameters are a convolution of
+  // a normal distribution and a laplace distribution
+  // the normal distribution is the L2 regularization
+  // the laplace distribution is the L1 regularization
+  // with L1 penalty strength `lambda_elr`
+  // and L2 penalty strength `1 - lambda_elr`
+  // the first raw accident year `expected_loss_ratio` parameter is an intercept
+  // the remaining raw accident year `expected_loss_ratio` parameters are differences
+  // actual accident year `expected_loss_ratio` parameters are the cumulative sum
+  // of the raw accident year `expected_loss_ratio` parameters
+  r_log_elr ~ normal(0, 1 - lambda_elr) + laplace(0, lambda_elr);
+  
+
 }
