@@ -104,6 +104,7 @@ functions{
     for(i in 1:len_data){
       sum_squared_errors += (y_true[i] - y_pred[i]) ^ 2;  
     }
+    
     // Return the mean of the squared differences.
     return sum_squared_errors / len_data;
   }
