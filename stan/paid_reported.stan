@@ -30,21 +30,26 @@ transformed data{
   vector[len_data] log_paid_loss = log(paid_loss);
   vector[len_data] log_rpt_loss = log(rpt_loss);
 
+  // calculate the incremental paid and reported losses
+  vector[len_data] inc_paid_loss = cum_to_inc(len_data, n_w, n_d, paid_loss, w, d);
+  vector[len_data] inc_rpt_loss = cum_to_inc(len_data, n_w, n_d, rpt_loss, w, d);
+
   // calculate the calendar period index
   vector[len_data] calendar_period_index = w .* num_dev_per_acc + d;
 
   // calculate the max calendar period index (eg the current calendar period)
   int current_calendar_period_index = max(calendar_period_index);
 
+  // calculate the cumulative paid and reported losses by accident period
+  vector[n_w] paid_loss_acc_prd = cumulative_loss_by_acc_prd(len_data, n_w, n_d, paid_loss, w, d);
+  vector[n_w] rpt_loss_acc_prd = cumulative_loss_by_acc_prd(len_data, n_w, n_d, rpt_loss, w, d); 
 
   // current development period for each accident period
-  int<lower=1,upper=n_d> cur_d[n_w] = max_log_loss_by_group_maximize(cum_rpt_loss, len_data, w, n_w, d)[1];
+  int<lower=1,upper=n_d> cur_d[n_w] = current_dev_period_by_acc_prd(len_data, w, d);
 
-  // use the `lookup_table_by_test_value` function to get the cumulative log paid loss for each accident period
-  // testing that d = cur_d for each accident period
-  // array of length `n_w` with the log of the cumulative paid loss for each accident period
-  vector[n_w] log_cum_paid_loss_ay = lookup_table_by_test_value(log_paid_loss, d, cur_d, n_w, 1)[1];
-  vector[n_w] log_cum_rpt_loss_ay = lookup_table_by_test_value(log_rpt_loss, d, cur_d, n_w, 1)[1];
+  // log of the cumulative paid and reported losses by accident period
+  vector[n_w] log_cum_paid_loss_ay = log(paid_loss_acc_prd);
+  vector[n_w] log_cum_rpt_loss_ay = log(rpt_loss_acc_prd);
 
   // use the `premium_time_series` and `build_premium_table` functions
   // and `get_cumulative_premium` function to calculate vector[n_w] log_prem_ay
