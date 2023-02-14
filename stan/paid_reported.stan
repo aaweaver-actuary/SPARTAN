@@ -55,6 +55,9 @@ transformed data{
   // and `get_cumulative_premium` function to calculate vector[n_w] log_prem_ay
   // array of length `n_w` with the log of the premium for each accident period
   vector[n_w] log_prem_ay = get_cumulative_premium(build_premium_table(premium_time_series(log_prem, w, d, len_data, n_w, n_d), n_w, n_d), n_w, n_d)[, 3];
+
+  // get the matrix of future data (for the generation of the predictive distribution)
+  matrix[n_w * n_d - len_data, 3] future_data =  future_data(len_data, n_w, n_d, exposure, w, d);
   
 }
 parameters{
@@ -101,6 +104,10 @@ transformed parameters{
   // loss at the `w` and `d` corresponding to that row
   vector[len_data] mu_rpt_loss;
   vector[len_data] mu_paid_loss;
+
+  // loss functions
+  real mean_abs_error;
+  real mean_square_error;
   
   
   // speedup parameter represents either the speedup or slowdown factor as paid / reported ratios
@@ -118,26 +125,9 @@ transformed parameters{
   mu_rpt_loss = calculate_mu_loss(0, len_data, w, d, log_prem, logelr, alpha_loss, beta_adj(n_d, beta_rpt_loss), speedup, rho, log_rpt_loss);
   mu_paid_loss = calculate_mu_loss(1, len_data, w, d, log_prem, logelr, alpha_loss, beta_adj(n_d, beta_paid_loss), speedup, rho, log_paid_loss);
 
-  // calculate the mean asymmetric error for the model by passing in the appropriate functions
-  // to calculate the upside and downside errors
-  // returns the negative of the mean asymmetric error so that it can be used in the objective function
-  real mae = -mean_asymmetric_error(
-    // length of the data, used to create the vectors of the correct length
-    len_data * 2
-    
-    // append log_paid_loss to the end of the log_rpt_loss vector
-    , log_rpt_loss + log_paid_loss
-    , mu_rpt_loss + mu_paid_loss
-    // upside is the squared error
-    , auto upside = (real y_pred, real y_true) -> real {(y_pred - y_true)^2;};
-    
-    // downside is the absolute error
-    , auto downside = (real y_pred, real y_true) -> real {fabs(y_pred - y_true);};
-    );
-
   // calculate both absolute and squared errors, as negatives for use in the objective function
-  real mean_abs_error = -mean_absolute_error(len_data * 2, log_rpt_loss + log_paid_loss, mu_rpt_loss + mu_paid_loss);
-  real mean_square_error = -mean_absolute_error(len_data * 2, log_rpt_loss + log_paid_loss, mu_rpt_loss + mu_paid_loss);
+  mean_abs_error = -mean_absolute_error(len_data * 2, log_rpt_loss + log_paid_loss, mu_rpt_loss + mu_paid_loss);
+  mean_square_error = -mean_absolute_error(len_data * 2, log_rpt_loss + log_paid_loss, mu_rpt_loss + mu_paid_loss);
 }
 model{
   // most of the parameters get relatively wide sigma values of 3.162, which is approximately equal to the
@@ -175,17 +165,12 @@ model{
     log_rpt_loss[i] ~ normal(mu_rpt_loss[i],sig_rpt_loss[d[i]]);
   }
 }
-optimize(
-  obj_fun=c("mae", "mean_abs_error", "mean_square_error")
-  , algorithm="L-BFGS"
-  , iter=10000
-  , init_
-
-);
 generated quantities{
   // Initialize the vector that will store the estimated cumulative paid losses, and the estimated cumulative reported losses:
-  vector[len_data] est_cum_paid_loss;
-  vector[len_data] est_cum_rpt_loss;
+  vector[n_w * n_d] est_cum_paid_loss;
+  vector[n_w * n_d] est_cum_rpt_loss;
+  vector[n_w * n_d] d;
+  vector[n_w * n_d] w;
   
   // Initialize the vector that will store the estimated ultimates
   vector[n_w] est_ult_loss;
