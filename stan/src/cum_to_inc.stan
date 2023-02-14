@@ -9,8 +9,8 @@
     Note that before running this function, the cumulative loss vector must be sorted by accident year
     and development period. This can be done using the sort function.
     @param len_data (integer) The length of the data.
-    @param n_ay (integer) The number of accident years.
-    @param n_dev (integer) The number of development periods.
+    @param n_w (integer) The number of accident periods.
+    @param n_d (integer) The number of development periods.
     @param cumulative_loss (vector) The cumulative loss vector.
     @param w (vector) The accident period vector.
     @param d (vector) The development period vector.
@@ -39,7 +39,7 @@
     [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 110, 10, 10, 10, 10, 10, 170, 10]
 
     */
-vector cum_to_inc(int len_data, int n_ay, int n_dev, vector cumulative_loss, vector w, vector d) {
+vector cum_to_inc(int len_data, int n_w, int n_d, vector cumulative_loss, vector w, vector d) {
     // initialize the incremental loss vector
     vector[len_data] incremental_loss;
 
