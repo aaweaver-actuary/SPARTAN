@@ -10,9 +10,9 @@ data{
   // reported loss for each row in the table
   vector[len_data] log_prem;
 
-  // paid and reported loss are given in matrix form
-  matrix[len_data, n_d] paid_loss;
-  matrix[len_data, n_d] rpt_loss;
+  // paid and reported loss are given as cumulative amounts:
+  vector[len_data] paid_loss;
+  vector[len_data] rpt_loss;
   
   // array of length `len_data` with the accident period index for each row in the table
   // these values range from 1 to `n_w`, with min accident period represented by 1
@@ -20,14 +20,22 @@ data{
   
   // array of length `len_data` with the development period index for each row in the table
   // these values range from 1 to `n_d`, with min development period represented by 1
-  
-  // THIS PROBABLY ISN'T NEEDED:
-  // int<lower=1,upper=n_d> d[len_data];
+  int<lower=1,upper=n_d> d[len_data];
+
+  // integer representing the number of development periods for each accident period
+  int num_dev_per_acc;
 }
 transformed data{
-  // cumulative paid and reported loss for each data point
-  vector[len_data] cum_paid_loss = exp(log_paid_loss);
-  vector[len_data] cum_rpt_loss = exp(log_rpt_loss);
+  // log cumulative paid and reported loss for each data point
+  vector[len_data] log_paid_loss = log(paid_loss);
+  vector[len_data] log_rpt_loss = log(rpt_loss);
+
+  // calculate the calendar period index
+  vector[len_data] calendar_period_index = w .* num_dev_per_acc + d;
+
+  // calculate the max calendar period index (eg the current calendar period)
+  int current_calendar_period_index = max(calendar_period_index);
+
 
   // current development period for each accident period
   int<lower=1,upper=n_d> cur_d[n_w] = max_log_loss_by_group_maximize(cum_rpt_loss, len_data, w, n_w, d)[1];
