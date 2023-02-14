@@ -1,8 +1,3 @@
-functions {
-// Include the functions from the "spartan_functions.stan" file
-  #include spartan_functions.stan
-
-}
 data{
   // length of the arrays of loss data passed
   int<lower=1> len_data;
@@ -14,8 +9,10 @@ data{
   // array of length `len_data` with the log of the premium, paid loss, and
   // reported loss for each row in the table
   vector[len_data] log_prem;
-  vector[len_data] log_paid_loss;
-  vector[len_data] log_rpt_loss;
+
+  // paid and reported loss are given in matrix form
+  matrix[len_data, n_d] paid_loss;
+  matrix[len_data, n_d] rpt_loss;
   
   // array of length `len_data` with the accident period index for each row in the table
   // these values range from 1 to `n_w`, with min accident period represented by 1
@@ -23,7 +20,9 @@ data{
   
   // array of length `len_data` with the development period index for each row in the table
   // these values range from 1 to `n_d`, with min development period represented by 1
-  int<lower=1,upper=n_d> d[len_data];
+  
+  // THIS PROBABLY ISN'T NEEDED:
+  // int<lower=1,upper=n_d> d[len_data];
 }
 transformed data{
   // cumulative paid and reported loss for each data point
