@@ -30,6 +30,9 @@ transformed data{
   vector[len_data] log_paid_loss = log(paid_loss);
   vector[len_data] log_rpt_loss = log(rpt_loss);
 
+  // log cumulative paid / reported ratios for each data point
+  vector[len_data] log_paid_rpt_ratio = log_paid_loss - log_rpt_loss;
+
   // calculate the incremental paid and reported losses
   vector[len_data] inc_paid_loss = cum_to_inc(len_data, n_w, n_d, paid_loss, w, d);
   vector[len_data] inc_rpt_loss = cum_to_inc(len_data, n_w, n_d, rpt_loss, w, d);
