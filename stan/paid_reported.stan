@@ -23,7 +23,7 @@ data{
   int<lower=1,upper=n_d> d[len_data];
 
   // integer representing the number of development periods for each accident period
-  int num_dev_per_acc;
+  int<lower=1, upper=12> num_dev_per_acc;
 }
 transformed data{
   // log cumulative paid and reported loss for each data point
@@ -70,6 +70,9 @@ parameters{
   
   // beta parameters for the reported loss pattern for each of the `n_d` development periods
   vector[n_d] beta_rpt_loss;
+
+  // beta parameters for the paid / reported development pattern for each of the `n_d` development periods
+  vector[n_d] beta_paid_rpt_dev;
   
   // the expected loss ratio applied to each accident period  
   // drawn from normal(-0.4, sqrt(10))
@@ -104,6 +107,7 @@ transformed parameters{
   // loss at the `w` and `d` corresponding to that row
   vector[len_data] mu_rpt_loss;
   vector[len_data] mu_paid_loss;
+  vector[len_data] mu_paid_rpt_ratio;
 
   // loss functions
   real mean_abs_error;
@@ -125,6 +129,9 @@ transformed parameters{
   mu_rpt_loss = calculate_mu_loss(0, len_data, w, d, log_prem, logelr, alpha_loss, beta_adj(n_d, beta_rpt_loss), speedup, rho, log_rpt_loss);
   mu_paid_loss = calculate_mu_loss(1, len_data, w, d, log_prem, logelr, alpha_loss, beta_adj(n_d, beta_paid_loss), speedup, rho, log_paid_loss);
 
+  // calculate the paid / reported ratio for each row in the data
+  mu_paid_rpt_ratio = beta_adj(n_d, beta_paid_rpt_dev);
+
   // calculate both absolute and squared errors, as negatives for use in the objective function
   mean_abs_error = -mean_absolute_error(len_data * 2, log_rpt_loss + log_paid_loss, mu_rpt_loss + mu_paid_loss);
   mean_square_error = -mean_absolute_error(len_data * 2, log_rpt_loss + log_paid_loss, mu_rpt_loss + mu_paid_loss);
@@ -142,6 +149,7 @@ model{
   // the first `n_d - 1` beta parameters for reported loss come from the draw in the parameters block
   beta_paid_loss[1:n_d] ~ normal(0,3.162);
   beta_rpt_loss[1:n_d] ~ normal(0,3.162);
+  beta_paid_rpt_dev[1:n_d] ~ normal(beta_paid_loss[1:n_d] / beta_rpt_loss[1:n_d], 3.162);
   
   // process variance terms come from this inverse gamma distribution
   // they are then inverted to get something between 0 and 1
@@ -163,6 +171,7 @@ model{
   for (i in 1:len_data) {
     log_paid_loss[i] ~ normal(mu_paid_loss[i],sig_paid_loss[d[i]]);
     log_rpt_loss[i] ~ normal(mu_rpt_loss[i],sig_rpt_loss[d[i]]);
+    log_paid_rpt_ratio[i] ~ normal(mu_paid_rpt_ratio[i], sqrt(power(sig_paid_loss[d[i]] / sig_rpt_loss[d[i]], 2)));
   }
 }
 generated quantities{
