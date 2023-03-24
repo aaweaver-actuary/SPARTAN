@@ -1,1 +1,0 @@
-conda create -n pymc-env python=3.10.* R=4.1.* r-tidyverse r-bayesplot r-rstan r-rstantools r-shinystan pymc pytensor bambi pandas numpy scipy pytorch scikit-learn plotly scikit-learn-intelex -c conda-forge -c r -c defaults -c pytorch -c intel xarray xgboost

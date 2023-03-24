@@ -1,0 +1,17 @@
+{
+  "overrides": [
+    {
+      "files": ["*.py", "*.ipynb"],
+      "options": {
+        "parser": "python",
+        "plugins": ["prettier-plugin-python"],
+        "useTabs": false,
+        "tabWidth": 4,
+        "printWidth": 80,
+        "singleQuote": true,
+        "trailingComma": "all",
+        "semi": false
+      }
+    }
+  ]
+}

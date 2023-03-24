@@ -1,0 +1,1 @@
+conda create -n pymc-env python=3.10.* pymc pytensor bambi pandas numpy scipy pytorch scikit-learn plotly xarray xgboost matplotlib seaborn jupyter jupyterlab notebook ipykernel -c conda-forge
