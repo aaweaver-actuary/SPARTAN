@@ -203,7 +203,7 @@ generated quantities{
     
   // generate estimates of ultimate by accident period
   // this is done by looping through each accident period, and calculating the ultimate loss for that accident period
-  while(1){
+  {
     // create a matrix to store the ultimate loss parameters for each accident period
     matrix[n_w, 2] ul = calculate_ultimate_loss(n_w, n_d, log_prem_ay, logelr, alpha_loss, beta_adj(n_d, beta_rpt_loss), speedup, rho, log_rpt_loss_ay, sig_rpt_loss);
     
@@ -218,8 +218,6 @@ generated quantities{
         ul[i, 2]
         );
     }
-    // break out of the while loop
-    break;
   }
   
   // generate mean absolute error
